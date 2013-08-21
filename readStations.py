@@ -171,9 +171,3 @@ cfgout.write(resppath + "\t" + resppathcmt + "\n\n")
 # Print station info to config file
 for i in range(len(stationlist)):
 	cfgout.write(stationlist[i] + "\n")
-
-
-
-
-
-

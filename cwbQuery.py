@@ -200,7 +200,6 @@ for i in range(streamlen):
 	# NOTE: Need a way to scp multiple files using station IDS
 	# store resfilenames in a list. Alternate way is scp entire
 	# response dir from aslres01
-	# resppath = "/APPS/metadata/RESPS/"	# response filepath on aslres01
 	resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
 	stationName.append(resfilename)	
 	resfile = resppath + resfilename
@@ -218,10 +217,6 @@ for i in range(streamlen):
 	# network and data extracted from each station
 	# ------------------------------------------------------------------	
 	if filtertype == "bandpass":
-		print "bandpass"	
-		print "i = " + str(i)	
-		print "station = " + str(filelist[i])	
-		print "resp file = " + str(resfilename)	
 		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
 		#stream[i].filter(filtertype, freqmin=fl1, freqmax=fl3, corners=2)	# bandpass filter design
 	elif filtertype == "lowpass":
