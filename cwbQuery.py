@@ -42,6 +42,14 @@ for line in fin:
 				data['notch'] = newline[0].strip()
 			elif "magnification" in newline[1]:
 				data['magnification'] = newline[0].strip()
+			elif "c1" in newline[1]:
+				data['c1'] = newline[0].strip()
+			elif "c2" in newline[1]:
+				data['c2'] = newline[0].strip()
+			elif "c3" in newline[1]:
+				data['c3'] = newline[0].strip()
+			elif "c4" in newline[1]:
+				data['c4'] = newline[0].strip()
 			elif "seed" in newline[1]:
 				data['seedpath'] = newline[0].strip()
 			elif "plots" in newline[1]:
@@ -66,6 +74,10 @@ ipaddress = str(data['ipaddress'])
 httpport = int(data['httpport'])
 filtertype = str(data['filtertype'])
 magnification = float(data['magnification'])
+c1 = float(data['c1'])
+c2 = float(data['c2'])
+c3 = float(data['c3'])
+c4 = float(data['c4'])
 seedpath = str(data['seedpath'])
 plotspath = str(data['plotspath'])
 cwbquery = str(data['cwbquery'])
@@ -89,6 +101,7 @@ for f in files:
 stationlen = len(stationinfo)
 
 # Get current date/time and subtract a day
+# This will always pull the current time on the system
 time = datetime.now() - timedelta(days=1)
 timestring = str(time)
 timestring = re.split("\\.", timestring)
@@ -182,10 +195,6 @@ for i in range(streamlen):
 # Pre-filter bandpass corner freqs
 # eliminates end frequency spikes (H(t) = F(t)/G(t))
 # G(t) != 0
-c1 = 0.02
-c3 = 0.05
-c2 = c1
-c4 = c3
 stationName = []	# station names for output plots
 for i in range(streamlen):	
 	# NOTE: Need a way to scp multiple files using station IDS
@@ -213,11 +222,7 @@ for i in range(streamlen):
 		print "i = " + str(i)	
 		print "station = " + str(filelist[i])	
 		print "resp file = " + str(resfilename)	
-		fl1 = bplowerfreq
-		fl3 = bpupperfreq 
-		fl2 = fl1
-		fl4 = fl3 
-		stream[i].simulate(paz_remove=None, pre_filt=(fl1, fl2, fl3, fl4), seedresp=resp, taper='True')	# deconvolution
+		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
 		#stream[i].filter(filtertype, freqmin=fl1, freqmax=fl3, corners=2)	# bandpass filter design
 	elif filtertype == "lowpass":
 		fl = lpfreq

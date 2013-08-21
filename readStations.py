@@ -65,6 +65,14 @@ for line in fin:
 				notchfreq = newline[1].strip()
 			elif "magnification" in newline[0]:
 				magnification = newline[1].strip()
+			elif "prefiltf1" in newline[0]:
+				c1 = newline[1].strip()
+			elif "prefiltf2" in newline[0]:
+				c2 = newline[1].strip()
+			elif "prefiltf3" in newline[0]:
+				c3 = newline[1].strip()
+			elif "prefiltf4" in newline[0]:
+				c4 = newline[1].strip()
 
 # Comments associated with each variable
 stationcmt = "# station info"
@@ -72,6 +80,10 @@ durationcmt = "# duration"
 ipaddresscmt = "# ipaddress of local ANMO server"
 httpportcmt = "# httpport number of local CWB Server (aslcwb.cr.usgs.gov) this will change accordingly to find open ports for ip addr run: nmap <ipaddr>"
 filtertypecmt = "# filter type"
+c1cmt = "# prefilt c1"
+c2cmt = "# prefilt c2"
+c3cmt = "# prefilt c3"
+c4cmt = "# prefilt c4"
 bplowerfreqcmt = "# bplower freq"
 bpupperfreqcmt = "# bpupper freq"
 lpfreqcmt = "# lp freq"
@@ -130,6 +142,13 @@ elif filtertype == "notch":
 	cfgout.write(filtertype + "\t" + filtertypecmt + "\n")
 	cfgout.write(notchfl + "\t" + notchfreqcmt + "\n")
 cfgout.write(magnification + "\t" + magnificationcmt + "\n\n")
+
+# Prefilter desgin (bandpass with 4 corner frequencies)
+cfgout.write("# PreFilter Design (4 corner frequencies)\n")
+cfgout.write(c1 + "\t" + c1cmt + "\n")
+cfgout.write(c2 + "\t" + c2cmt + "\n")
+cfgout.write(c3 + "\t" + c3cmt + "\n")
+cfgout.write(c4 + "\t" + c4cmt + "\n\n")
 
 # Create file paths for SeedFiles and OutputPlots
 cwd = os.getcwd()	# get current directory
