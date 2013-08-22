@@ -73,6 +73,10 @@ for line in fin:
 				c3 = newline[1].strip()
 			elif "prefiltf4" in newline[0]:
 				c4 = newline[1].strip()
+			elif "cwbquery" in newline[0]:
+				cwbquery = newline[1].strip()
+			elif "resppath" in newline[0]:
+				resppath = newline[1].strip()
 
 # Comments associated with each variable
 stationcmt = "# station info"
@@ -152,10 +156,8 @@ cfgout.write(c4 + "\t" + c4cmt + "\n\n")
 
 # Create file paths for SeedFiles and OutputPlots
 cwd = os.getcwd()	# get current directory
-seedpath = cwd + "/SeedFiles"
-plotspath = cwd + "/OutputPlots"
-cwbquery = "/home/asluser/bin/CWBQuery.jar"
-resppath = "/APPS/metadata/RESPS"
+seedpath = cwd + "/SeedFiles/"
+plotspath = cwd + "/OutputPlots/"
 if not os.path.exists(seedpath):
 	print seedpath + " DNE, creating path..."
 	os.makedirs(seedpath)

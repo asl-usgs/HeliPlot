@@ -1,5 +1,4 @@
 #/usr/bin/python
-from obspy.neic import Client	# NEIC CWB Server Client for ObsPy
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
@@ -95,7 +94,7 @@ elif filtertype == "notch":
 # ------------------------------------------------
 # Pull specific station seed file using CWBQuery
 # ------------------------------------------------
-files = glob.glob("'"+seedpath+"'"+"*'")
+files = glob.glob(seedpath+"*")
 for f in files:
 	os.remove(f)	# remove temp seed files from SeedFiles dir
 stationlen = len(stationinfo)
@@ -108,6 +107,10 @@ timestring = re.split("\\.", timestring)
 tmp = timestring[0]
 timedate = tmp.replace("-", "/")
 datetimeQuery = timedate.strip()
+tmpUTC = datetimeQuery
+tmpUTC = tmpUTC.replace("/", "")
+tmpUTC = tmpUTC.replace(" ", "_")
+datetimeUTC = UTCDateTime(str(tmpUTC))
 
 for i in range(stationlen):	# cwbquery on each operable station
 	try:	
@@ -207,7 +210,11 @@ for i in range(streamlen):
 	cwd = os.getcwd()
 	#os.system("scp agonzales@aslres01.cr.usgs.gov:" + resfile + " " + cwd)
 	#resp = evalresp(1, nfft, resfilename, t, station=stationID, channel=channelID, network=networkID, locid=locationID, units="DIS", debug=False)
-	resp = {'filename': resfilename, 'date': t, 'units': 'DIS'}
+	print "stream[%d]" % i
+	print "number of traces = " + str(len(stream[i]))	
+	print "datetimeUTC = " + str(datetimeUTC)	
+	print "resfilename = " + str(resfilename)
+	resp = {'filename': resfilename, 'date': datetimeUTC, 'units': 'DIS'}
 
 	# ------------------------------------------------------------------
 	# Simulation/filter for deconvolution
@@ -218,15 +225,14 @@ for i in range(streamlen):
 	# ------------------------------------------------------------------	
 	if filtertype == "bandpass":
 		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
-		#stream[i].filter(filtertype, freqmin=fl1, freqmax=fl3, corners=2)	# bandpass filter design
+		#stream[i].filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=2)	# bandpass filter design
 	elif filtertype == "lowpass":
-		fl = lpfreq
 		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
-		stream[i].filter(filtertype, freq=fl, corners=1)	# lowpass filter design 
+		stream[i].filter(filtertype, freq=lpfreq, corners=1)	# lowpass filter design 
 	elif filtertype == "highpass":
-		f1 = hpfreq
 		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
-		stream[i].filter(filtertype, freq=f1, corners=1)	# highpass filter design	
+		stream[i].filter(filtertype, freq=hpfreq, corners=1)	# highpass filter design
+	print "\n"
 
 # ----------------------------------------------------------------
 # Magnification (will also support user input)
