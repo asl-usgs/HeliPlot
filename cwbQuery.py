@@ -41,6 +41,12 @@ for line in fin:
 				data['notch'] = newline[0].strip()
 			elif "magnification" in newline[1]:
 				data['magnification'] = newline[0].strip()
+			elif "xres"  in newline[1]:
+				data['resx'] = newline[0].strip()
+			elif "yres" in newline[1]:
+				data['resy'] = newline[0].strip()
+			elif "pixels" in newline[1]:
+				data['pix'] = newline[0].strip()
 			elif "c1" in newline[1]:
 				data['c1'] = newline[0].strip()
 			elif "c2" in newline[1]:
@@ -73,6 +79,9 @@ ipaddress = str(data['ipaddress'])
 httpport = int(data['httpport'])
 filtertype = str(data['filtertype'])
 magnification = float(data['magnification'])
+resx = int(data['resx'])
+resy = int(data['resy'])
+pix = int(data['pix'])
 c1 = float(data['c1'])
 c2 = float(data['c2'])
 c3 = float(data['c3'])
@@ -106,7 +115,9 @@ timestring = str(time)
 timestring = re.split("\\.", timestring)
 tmp = timestring[0]
 timedate = tmp.replace("-", "/")
-datetimeQuery = timedate.strip()
+#datetimeQuery = timedate.strip()
+datetimeQuery = "2013/08/17 00:00:00"
+print "\ndatetimeQuery = " + str(datetimeQuery)
 tmpUTC = datetimeQuery
 tmpUTC = tmpUTC.replace("/", "")
 tmpUTC = tmpUTC.replace(" ", "_")
@@ -116,7 +127,6 @@ for i in range(stationlen):	# cwbquery on each operable station
 	try:	
 		proc = subprocess.Popen(["java -jar " + cwbquery + " -s " + '"'+stationinfo[i]+'"' + " -b " + '"'+datetimeQuery+'"' + " -d " + '"'+str(duration)+'"' + " -t ms -o " + seedpath+"%N_%y_%j -h " + '"'+ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
 		(out, err) = proc.communicate()
-		print out	
 	except Exception as e:
 		print "*****Exception found = " + str(e)
 
@@ -145,8 +155,8 @@ for i in range(streamlen):
 	index = str(i)	
 	if tracelen == 1:	# single trace stream
 		trace[index] = strsel[0]	# trace 0 in stream i
-		nfft = trace[index].count()	
-	else:			# multiple trace stream
+		nfft = trace[index].count()		
+	elif tracelen > 1:			# multiple trace stream
 		trace[index] = []	# list in dict 
 		nfft = 0
 		for j in range(tracelen):	
@@ -157,21 +167,27 @@ for i in range(streamlen):
 # Loop through stream traces, if trace has sample rate = 0.0Hz 
 # => NFFT = 0 then this trace will be removed
 for i in range(streamlen):
-	strsel = stream[i]
-	tracelen = len(strsel)
 	index = str(i)
+	tracelen = stream[i].count() 
+	print "number of traces = " + str(tracelen)	
+	print "len(trace[i]) = " + str(len(trace[index]))
+	print strsel	
 	if tracelen == 1:
-		#print "Station = " + str(trace[index].stats['station'])	
 		if trace[index].stats['sampling_rate'] == 0.0:
 			#print "removed trace[%d]" % i 
-			strsel.remove(trace[index])	
-	else:
-		#print "Station = " + str(trace[index][0].stats['station'])	
+			#strsel.remove(trace[index])	
+			stream[i].remove(trace[index])	
+	elif tracelen > 1:
 		for j in range(tracelen):	
+			'''	
 			tr = trace[index]	
 			if tr[j].stats['sampling_rate'] == 0.0:
 				#print "removed trace[%d][%d]" % (i, j)	
 				strsel.remove(tr[j])	
+			'''	
+			if trace[index][j].stats['sampling_rate'] == 0.0:
+				#print "removed trace[%d][%d]" % (i, j)
+				stream[i].remove(trace[index][j])
 
 # ----------------------------------------------------------------
 # Pull frequency response for station and run a simulation
@@ -214,7 +230,7 @@ for i in range(streamlen):
 	print "number of traces = " + str(len(stream[i]))	
 	print "datetimeUTC = " + str(datetimeUTC)	
 	print "resfilename = " + str(resfilename)
-	resp = {'filename': resfilename, 'date': datetimeUTC, 'units': 'DIS'}
+	resp = {'filename': resfilename, 'date': datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
 
 	# ------------------------------------------------------------------
 	# Simulation/filter for deconvolution
@@ -223,6 +239,7 @@ for i in range(streamlen):
 	# run the same filter design, this will change depending on the 
 	# network and data extracted from each station
 	# ------------------------------------------------------------------	
+	stream[i].merge(method=0)	# merge traces to eliminate small data lengths
 	if filtertype == "bandpass":
 		stream[i].simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=resp, taper='True')	# deconvolution
 		#stream[i].filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=2)	# bandpass filter design
@@ -236,33 +253,50 @@ for i in range(streamlen):
 
 # ----------------------------------------------------------------
 # Magnification (will also support user input)
+# NOTE: Traces are now merged into single stream so we
+#	must account for this in the magnification
 # ----------------------------------------------------------------
 streamlen = len(stream)
 for i in range(streamlen):
 	index = str(i)	
-	strsel = stream[i]	# stream selection
-	tracelen = len(strsel)	# number of traces in stream
+	#strsel = stream[i]	# stream selection
+	#tracelen = len(strsel)	# number of traces in stream
+	tracelen = stream[i].count()
+	name = networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# name 
+	print "name = " + str(name)	
+	print stream[i] 
 	if tracelen == 1:
-		datalen = len(trace[index].data)
+		tr = stream[i][0]	
+		datalen = tr.count() 
+		print "datalen = " + str(datalen)	
+		print "\n"	
 		j = 0	
+		print	
+		print "stream[i][0].data[547] = " + str(stream[i][0].data[547])
+		print "tr.data[547] = " + str(tr.data[547])
+		print "magnification = " + str(magnification)	
 		for j in range(datalen):	# multiple data points in trace
-			trace[index].data[j] = trace[index].data[j] * magnification	# magnitude cal	
-
-	else:
+			stream[i][0].data[j] = tr.data[j] * magnification # mag cal	
+		print "stream[i][0].data[547] * mag = " + str(stream[i][0].data[547])
+	'''	
+	elif tracelen > 1:
 		j = 0	
 		for j in range(tracelen):
 			tr = trace[index]	# store multiple traces in a tmp trace list
 			datalen = len(tr[j])	# number of traces in tmp trace list
 			for k in range(datalen):
 				tr[j].data[k] = tr[j].data[k] * magnification	# magnitude cal
+	'''
 
 # ----------------------------------------------------------------
 # Plot displacement data
 # ----------------------------------------------------------------
 os.chdir(plotspath)
+#color=['k', 'r', 'b', 'g']
+#outfile=stationName[i]+".jpg"
 for i in range(streamlen):
-	stream[i].merge(method=1)
+	stream[i].merge(method=0)
 	stream[i].plot(type='dayplot', interval=60, right_vertical_labels=False,
-		number_of_ticks=7, one_tick_per_line=True, color=['k', 'r', 'b', 'g'],
-		show_y_UTC_label=False, outfile=stationName[i]+".png") 
+		number_of_ticks=7, one_tick_per_line=True, color=['k'],
+		show_y_UTC_label=True, size=(resx,resy), dpi=pix, title=stream[i][0].getId()+"  "+"Last Updated: "+str(datetimeQuery)+"  "+str(resx)+"x"+str(resy)+", "+str(pix)) 
 	#os.remove(resfilename)	# remove response file after computing response

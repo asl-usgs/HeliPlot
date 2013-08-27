@@ -5,8 +5,19 @@ import os, re, string
 # selected station will be put into cwb.cfg
 # -------------------------------------------------------
 fin = open('stationNames.txt', 'r')
+finrm = open('prestation.cfg', 'r')
 stations = []	# list of stations
-rmnetwork = ['AS', 'BF', 'BK', 'CD', 'DW', 'HG', 'SR', 'TS']	# removed networks
+rmnetwork = []	# list of networks that will be removed from query list 
+for line in finrm:
+	if(line[0] != '#'):
+		if line != '\n':
+			newline = re.split('=', line)
+			if "rmnetwork" in newline[0]:
+				tmprm = re.split(',', newline[1])				
+				for i in range(len(tmprm)):
+					tmprm[i] = tmprm[i].strip()	
+					rmnetwork.append(tmprm[i])
+
 for line in fin:
 		count = 0	
 		# Remove all stations with rmnetwork key	
@@ -65,6 +76,12 @@ for line in fin:
 				notchfreq = newline[1].strip()
 			elif "magnification" in newline[0]:
 				magnification = newline[1].strip()
+			elif "resx" in newline[0]:
+				resx = newline[1].strip()
+			elif "resy" in newline[0]:
+				resy = newline[1].strip()
+			elif "pix" in newline[0]:
+				pix = newline[1].strip()
 			elif "prefiltf1" in newline[0]:
 				c1 = newline[1].strip()
 			elif "prefiltf2" in newline[0]:
@@ -94,6 +111,9 @@ lpfreqcmt = "# lp freq"
 hpfreqcmt = "# hp freq"
 notchfreqcmt = "# notch freq"
 magnificationcmt = "# magnification factor"
+resxcmt = "# xresolution"
+resycmt = "# yresolution"
+pixcmt = "# pixels per inch"
 seedpathcmt = "# seed path"
 plotspathcmt = "# plots path"
 cwbquerycmt = "# cwbquery jar file"
@@ -145,7 +165,10 @@ elif filtertype == "notch":
 	notchfl = notchfreq
 	cfgout.write(filtertype + "\t" + filtertypecmt + "\n")
 	cfgout.write(notchfl + "\t" + notchfreqcmt + "\n")
-cfgout.write(magnification + "\t" + magnificationcmt + "\n\n")
+cfgout.write(magnification + "\t" + magnificationcmt + "\n")
+cfgout.write(resx + "\t" + resxcmt + "\n")
+cfgout.write(resy + "\t" + resycmt + "\n")
+cfgout.write(pix + "\t" + pixcmt + "\n\n")
 
 # Prefilter desgin (bandpass with 4 corner frequencies)
 cfgout.write("# PreFilter Design (4 corner frequencies)\n")
