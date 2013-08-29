@@ -28,11 +28,12 @@ class HeliPlot(object):
 		timedate = tmp.replace("-", "/")
 		#datetimeQuery = timedate.strip()
 		datetimeQuery = "2013/08/17 00:00:00"
+		self.datetimeQuery = datetimeQuery	
 		print "\ndatetimeQuery = " + str(datetimeQuery) + "\n"
 		tmpUTC = datetimeQuery
 		tmpUTC = tmpUTC.replace("/", "")
 		tmpUTC = tmpUTC.replace(" ", "_")
-		datetimeUTC = UTCDateTime(str(tmpUTC))
+		self.datetimeUTC = UTCDateTime(str(tmpUTC))
 
 		for i in range(stationlen):	# cwbquery on each operable station
 			try:
@@ -88,6 +89,7 @@ class HeliPlot(object):
 				for j in range(tracelen):
 					if trace[index][j].stats['sampling_rate'] == 0.0:
 						stream[i].remove(trace[index][j])
+		self.stream = stream
 
 	def freqDeconvFilter(self):
 		# -----------------------------------------------------------
@@ -108,6 +110,10 @@ class HeliPlot(object):
 			channelindex = len(tmpstation)-14
 			locationID.append(str(tmpstation[locationindex:locationindex+2]))
 			channelID.append(str(tmpstation[channelindex:channelindex+3]))
+		self.networkID = networkID
+		self.stationID = stationID
+		self.locationID = locationID
+		self.channelID = channelID
 
 		# -------------------------------------------------------------------
 		# Loop through stations and get frequency responses for each stream
@@ -119,8 +125,78 @@ class HeliPlot(object):
 		for i in range(self.streamlen):
 			# NOTE: For aslres01 frequency responses are 
 			# contained in /APPS/metadata/RESPS/
-			resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]
+			resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
+			stationName.append(resfilename)
+			self.stationName = stationName	
+			os.chdir(self.resppath)
+			print "stream[%d]" % i
+			print "number of traces = " + str(len(self.stream[i]))
+			print "datetimeUTC = " + str(self.datetimeUTC)
+			print "resfilename = " + str(resfilename)
+			resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
 
+			# -------------------------------------------------------------------
+			# Simulation/filter for deconvolution
+			# NOTE: Filter will be chosen by user, this includes filter 
+			# coefficients and frequency ranges. Currently all stations run the
+			# same filter design (i.e. bandpass), this will change depending on 
+			# the network and data extracted from each station, the higher freq
+			# signals will need to use a notch or high freq filter
+			# -------------------------------------------------------------------
+			self.stream[i].merge(method=0)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
+			if self.filtertype == "bandpass":
+				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
+				#self.stream[i].filter(self.filtertype, freqmin=self.bplowerfreq, freqmax=self.bpupperfreq, corners=2)	# bandpass filter design
+			elif self.filtertype == "lowpass":
+				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
+				self.stream[i].filter(self.filtertype, freq=lpfreq, corners=1)	# lowpass filter design
+			elif self.filtertype == "highpass":
+				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
+				self.stream[i].filter(self.filtertype, freq=hpfreq, corners=1)	# highpass filter design
+			print "\n"
+
+	def magnifyPlot(self):
+		# --------------------------------------------------------
+		# Magnification (will also support user input)
+		# NOTE: Traces are now merged into a single stream so we
+		#	must account for this in the magnification
+		# --------------------------------------------------------
+		streamlen = len(self.stream)
+		for i in range(streamlen):
+			index = str(i)
+			tracelen = self.stream[i].count()
+			name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
+			print "name = " + str(name)
+			print self.stream[i]
+			if tracelen == 1:
+				tr = self.stream[i][0]
+				datalen = tr.count()
+				print "datalen = " + str(datalen)
+				j = 0
+				print "stream[i][0].data[547] = " + str(self.stream[i][0].data[547])
+				print "tr.data[547] = " + str(tr.data[547])
+				print "magnification = " + str(self.magnification)
+				print self.stream[i][0].data.dtype
+				for j in range(datalen):	# mult data points in trace
+					self.stream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
+				print "stream[i][0].data[547] * mag = " + str(self.stream[i][0].data[547])
+				print "\n"
+		
+		# --------------------------------------------------------
+		# Plot displacement data	
+		# --------------------------------------------------------
+		os.chdir(self.plotspath)
+		#outfile=self.stationName[i]+".jpg"
+		for i in range(streamlen):
+			self.stream[i].merge(method=0)
+			self.stream[i].plot(type='dayplot', interval=60, 
+					vertical_scaling_range=self.vertrange,
+					right_vertical_lables=True, number_of_ticks=7, 
+					one_tick_per_line=True, color=['k'],
+					show_y_UTC_label=False, size=(self.resx,self.resy), 
+					dpi=self.pix, events={"min_magnitude": 5.5},
+					title=self.stream[i][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+str(self.resx)+"x"+str(self.resy)+", "+str(self.pix),
+					outfile=self.stationName[i]+".jpg")
 	def __init__(self, **kwargs):
 		# -----------------------------------------
 		# Open cwb config file and read in lines
@@ -206,9 +282,9 @@ class HeliPlot(object):
 			self.bpupperfreq = float(data['bpupperfreq'])
 		elif self.filtertype == "lowpass":
 			self.lpfreq = float(data['lpfreq'])
-		elif filtertype == "highpass":
+		elif self.filtertype == "highpass":
 			self.hpfreq = float(data['hpfreq'])
-		elif filtertype == "notch":
+		elif self.filtertype == "notch":
 			self.notch = float(data['notch'])
 
 # -----------------------------
@@ -218,3 +294,5 @@ if __name__ == '__main__':
 	heli = HeliPlot()
 	heli.cwbQuery()
 	heli.pullTraces()	
+	heli.freqDeconvFilter()	
+	heli.magnifyPlot()
