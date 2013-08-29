@@ -82,6 +82,8 @@ for line in fin:
 				resy = newline[1].strip()
 			elif "pix" in newline[0]:
 				pix = newline[1].strip()
+			elif "vert" in newline[0]:
+				vertrange = newline[1].strip()
 			elif "prefiltf1" in newline[0]:
 				c1 = newline[1].strip()
 			elif "prefiltf2" in newline[0]:
@@ -114,6 +116,7 @@ magnificationcmt = "# magnification factor"
 resxcmt = "# xresolution"
 resycmt = "# yresolution"
 pixcmt = "# pixels per inch"
+vertrangecmt = "# vertical scaling range"
 seedpathcmt = "# seed path"
 plotspathcmt = "# plots path"
 cwbquerycmt = "# cwbquery jar file"
@@ -168,7 +171,8 @@ elif filtertype == "notch":
 cfgout.write(magnification + "\t" + magnificationcmt + "\n")
 cfgout.write(resx + "\t" + resxcmt + "\n")
 cfgout.write(resy + "\t" + resycmt + "\n")
-cfgout.write(pix + "\t" + pixcmt + "\n\n")
+cfgout.write(pix + "\t" + pixcmt + "\n")
+cfgout.write(vertrange + "\t" + vertrangecmt + "\n\n")
 
 # Prefilter desgin (bandpass with 4 corner frequencies)
 cfgout.write("# PreFilter Design (4 corner frequencies)\n")
