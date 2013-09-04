@@ -14,6 +14,7 @@ class HeliPlot(object):
 		# ------------------------------------------------
 		# Pull specific station seed file using CWBQuery
 		# ------------------------------------------------
+		self.home = os.getcwd()	
 		files = glob.glob(self.seedpath+"*")
 		for f in files:
 			os.remove(f)	# remove temp seed files from SeedFiles dir
@@ -173,30 +174,44 @@ class HeliPlot(object):
 				datalen = tr.count()
 				print "datalen = " + str(datalen)
 				j = 0
-				print "stream[i][0].data[547] = " + str(self.stream[i][0].data[547])
-				print "tr.data[547] = " + str(tr.data[547])
-				print "magnification = " + str(self.magnification)
-				print self.stream[i][0].data.dtype
 				for j in range(datalen):	# mult data points in trace
 					self.stream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
-				print "stream[i][0].data[547] * mag = " + str(self.stream[i][0].data[547])
 				print "\n"
 		
 		# --------------------------------------------------------
 		# Plot displacement data	
 		# --------------------------------------------------------
 		os.chdir(self.plotspath)
+		imgfiles = glob.glob(self.plotspath+"*")
+		for f in imgfiles:
+			os.remove(f)	# remove temp jpg files from OutputFiles dir
 		#outfile=self.stationName[i]+".jpg"
+		#title=self.stream[1][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+str(self.resx)+"x"+str(self.resy)+", "+str(self.pix)	
+		#events={"min_magnitude": 6.5}	
 		for i in range(streamlen):
 			self.stream[i].merge(method=0)
 			self.stream[i].plot(type='dayplot', interval=60, 
 					vertical_scaling_range=self.vertrange,
-					right_vertical_lables=True, number_of_ticks=7, 
+					right_vertical_lables=False, number_of_ticks=7, 
 					one_tick_per_line=True, color=['k'],
 					show_y_UTC_label=False, size=(self.resx,self.resy), 
-					dpi=self.pix, events={"min_magnitude": 5.5},
-					title=self.stream[i][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+str(self.resx)+"x"+str(self.resy)+", "+str(self.pix),
+					dpi=self.pix,
+					title=self.stream[i][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
 					outfile=self.stationName[i]+".jpg")
+	
+	def gifHTML(self):
+		# --------------------------------------------------------
+		# Converts .jpg files produced by HeliPlot to .gif files
+		# to be used for the LISS HTML. To generate html files
+		# we will call a version of the run_heli_24hr shell script
+		# --------------------------------------------------------
+		os.chdir(self.home)
+		try:	
+			process = subprocess.Popen(["./gifconvert.sh"], stderr=subprocess.PIPE, shell=True)
+			(out, err) = process.communicate()
+		except Exception as e:
+			print "*****Exception found = " + str(e)
+
 	def __init__(self, **kwargs):
 		# -----------------------------------------
 		# Open cwb config file and read in lines
@@ -296,3 +311,4 @@ if __name__ == '__main__':
 	heli.pullTraces()	
 	heli.freqDeconvFilter()	
 	heli.magnifyPlot()
+	heli.gifHTML()	

@@ -1,0 +1,182 @@
+#!/bin/ksh
+
+
+SEEDRESP=/dcc/metadata/responses
+WWW_DOCS=/scratch/heli/projs/helis
+~heli/bin/julday -82800|read YEAR  DAY HR MIN SEC
+
+#
+# next five lines get info from command line
+#
+TITLE=$1
+STATION=$2
+MAG=$3
+FILENAME_GFS=$4
+
+#########
+
+FILENAME_PS=$STATION'_24hr.ps'
+FILENAME_TIME=$STATION'_24hr.time'
+
+FILENAME_GIF=$STATION'_24hr.gif'
+FILENAME_PNM_TMP=$STATION'_24hr_tmp.pnm'
+
+FILENAME_GIF_LORES=$STATION'_24hr_lores.gif'
+FILENAME_HTML=$STATION'_24hr.html'
+FILENAME_HTML_LORES=$STATION'_24hr_lores.html'
+
+FILENAME_GIF_STAMP=$STATION'_24hr_stamp.gif'
+#/r08/users/bolton/bin/chngloc<<!
+#$FILENAME_GFS
+#!
+
+gheli $FILENAME_GFS $FILENAME_PS $FILENAME_TIME<<!
+12
+6.0
+$YEAR $DAY $HR 0 0
+86400
+3600
+$MAG
+0.02
+4
+LHZ
+0
+3
+0.001 .04
+4
+!
+
+if [[ $? != 0 ]]; then 
+    print " "
+    print "ERROR -- no data for 24hr:" $STATION $YEAR $DAY $HR
+    
+#if [[ $STATION = "WAKE" ]];
+#then
+#    cp $WWW_DOCS/Seismic_Data/telemetry_data/no_wake.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF
+#    cp $WWW_DOCS/Seismic_Data/telemetry_data/no_wake_lores.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_LORES
+#    cp $WWW_DOCS/Seismic_Data/telemetry_data/no_wake_stamp.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_STAMP
+#else
+    cp $WWW_DOCS/Seismic_Data/telemetry_data/nodata.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF
+    cp $WWW_DOCS/Seismic_Data/telemetry_data/nodata_lores.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_LORES
+    cp $WWW_DOCS/Seismic_Data/telemetry_data/nodata_stamp.gif $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_STAMP
+#fi
+    rm $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_TIME
+
+    echo "<HTML>" >$FILENAME_HTML
+    echo "<HEAD>" >>$FILENAME_HTML
+    echo "<TITLE>ASL DCC "$STATION" TELEMETRY DATA</TITLE>" >>$FILENAME_HTML
+    echo "</HEAD>" >>$FILENAME_HTML
+    echo "<BODY BGCOLOR=#FFFFFF TEXT=#000000 >" >>$FILENAME_HTML
+    echo "<H2><CENTER> "$TITLE"</CENTER></H2>">>$FILENAME_HTML
+#if [[ $STATION = "WAKE" ]];
+#then
+#echo "<H3><CENTER> This station is temporarily disabled. </CENTER></H3>">>$FILENAME_HTML
+#else
+echo "<H3><CENTER> Sorry, telemetry data are presently </CENTER></H3>">>$FILENAME_HTML
+echo "<H3><CENTER> unavailable for this station </CENTER></H3>">>$FILENAME_HTML
+#fi
+    echo "</BODY>"             >>$FILENAME_HTML
+    echo "</HTML>"             >>$FILENAME_HTML
+    cp $FILENAME_HTML $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_HTML
+
+    echo "<HTML>" >$FILENAME_HTML_LORES
+    echo "<HEAD>" >>$FILENAME_HTML_LORES
+    echo "<TITLE>ASL DCC "$STATION" TELEMETRY DATA</TITLE>" >>$FILENAME_HTML_LORES
+    echo "</HEAD>" >>$FILENAME_HTML_LORES
+    echo "<BODY BGCOLOR=#FFFFFF TEXT=#000000 >" >>$FILENAME_HTML_LORES
+    echo "<H2><CENTER> "$TITLE"</CENTER></H2>">>$FILENAME_HTML_LORES
+#if [[ $STATION = "WAKE" ]];
+#then
+#echo "<H3><CENTER> This station is temporarily disabled. </CENTER></H3>">>$FILENAME_HTML
+#else
+    echo "<H3><CENTER> Sorry, telemetry data are presently</CENTER></H3>">>$FILENAME_HTML_LORES
+    echo "<H3><CENTER> unavailable for this station</CENTER></H3>">>$FILENAME_HTML_LORES
+#fi
+    echo "</BODY>"             >>$FILENAME_HTML_LORES
+    echo "</HTML>"             >>$FILENAME_HTML_LORES
+    cp $FILENAME_HTML_LORES $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_HTML_LORES
+
+    exit
+fi
+
+
+#
+# convert postscript to GIF
+# Go through the seemingly useless ps-to-pnm-to-gif step to compress
+# the gif image. For some reason, convert generates an uncompressed GIF file.
+# The ppmtogif program puts the GIF in a proper, compressed, state.
+#
+convert -rotate 90 -crop 0x0 -density 85 $FILENAME_PS pnm:$FILENAME_PNM_TMP
+ppmtogif $FILENAME_PNM_TMP > $FILENAME_GIF
+
+#convert -rotate 90 -crop 0x0 -density 48 $FILENAME_PS pnm:$FILENAME_PNM_TMP
+#ppmtogif $FILENAME_PNM_TMP > $FILENAME_GIF_LORES
+
+convert -rotate 90 -crop 0x0 -density 30 $FILENAME_PS pnm:$FILENAME_PNM_TMP
+ppmtogif $FILENAME_PNM_TMP > $FILENAME_GIF_STAMP
+
+cp $FILENAME_GIF $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF
+cp $FILENAME_TIME $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_TIME
+#cp $FILENAME_GIF_LORES $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_LORES
+cp $FILENAME_GIF_STAMP $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_GIF_STAMP
+
+date '+%a %m/%d/%y %H:%M %Z'    | read TIME_MST
+date -u '+%a %m/%d/%y %H:%M %Z' | read TIME_GMT
+
+#
+# produce HTML file for high res image
+#
+echo "<HTML>" >$FILENAME_HTML
+echo "<HEAD>" >>$FILENAME_HTML
+echo "<TITLE>ASL DCC "$STATION" TELEMETRY DATA</TITLE>" >>$FILENAME_HTML
+echo "</HEAD>" >>$FILENAME_HTML
+echo "<BODY BGCOLOR=#FFFFFF TEXT=#000000 >" >>$FILENAME_HTML
+
+echo "<H2><CENTER> "$TITLE"</CENTER></H2>">>$FILENAME_HTML
+echo "<H3><CENTER> last updated at</CENTER></H3>">>$FILENAME_HTML
+echo "<H3><CENTER> "$TIME_MST" ("$TIME_GMT")</CENTER></H3>">>$FILENAME_HTML
+
+echo "<CENTER><img src="   >>$FILENAME_HTML
+echo '"'$FILENAME_GIF'"'   >>$FILENAME_HTML
+echo " BORDER=0></CENTER>" >>$FILENAME_HTML
+echo "<"p align= '"'center'"'">""<em>">>$FILENAME_HTML
+echo This page is URL: http://earthquake.usgs.gov/monitoring/operations/data/Seismic_Data/telemetry_data/$FILENAME_HTML>>$FILENAME_HTML
+echo "</em>">>$FILENAME_HTML
+echo "</BODY>"             >>$FILENAME_HTML
+echo "</HTML>"             >>$FILENAME_HTML
+
+cp $FILENAME_HTML $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_HTML
+
+
+#
+# produce HTML file for low res image
+#
+#
+#echo "<HTML>" >$FILENAME_HTML_LORES
+#echo "<HEAD>" >>$FILENAME_HTML_LORES
+#echo "<TITLE>ASL DCC "$STATION" TELEMETRY DATA</TITLE>" >>$FILENAME_HTML_LORES
+#echo "</HEAD>" >>$FILENAME_HTML_LORES
+#echo "<BODY BGCOLOR=#FFFFFF TEXT=#000000 >" >>$FILENAME_HTML_LORES
+#
+#echo "<H2><CENTER> "$TITLE"</CENTER></H2>">>$FILENAME_HTML_LORES
+#echo "<H3><CENTER> last updated at</CENTER></H3>">>$FILENAME_HTML_LORES
+#echo "<H3><CENTER> "$TIME_MST" ("$TIME_GMT")</CENTER></H3>">>$FILENAME_HTML_LORES
+#
+#echo "<CENTER><img src="   >>$FILENAME_HTML_LORES
+#echo '"'$FILENAME_GIF_LORES'"'   >>$FILENAME_HTML_LORES
+#echo " BORDER=0></CENTER>" >>$FILENAME_HTML_LORES
+#
+#echo "<"p align='"'center'"'">""<em>">>$FILENAME_HTML_LORES
+#echo This page is URL: http://aslwww.cr.usgs.gov/Seismic_Data/telemetry_data/$FILENAME_HTML_LORES>>$FILENAME_HTML_LORES
+#echo "</em>">>$FILENAME_HTML_LORES
+#
+#echo "</BODY>"             >>$FILENAME_HTML_LORES
+#echo "</HTML>"             >>$FILENAME_HTML_LORES
+#
+#cp $FILENAME_HTML_LORES $WWW_DOCS/Seismic_Data/telemetry_data/$FILENAME_HTML_LORES
+#
+#
+##
+## launch the postscript plots
+##
+##../run_heli_24hr_ps $2 $3 $4
