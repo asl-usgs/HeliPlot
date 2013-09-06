@@ -1,4 +1,4 @@
-#/usr/bin/python
+#!/usr/bin/python
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
@@ -127,7 +127,8 @@ class HeliPlot(object):
 			# NOTE: For aslres01 frequency responses are 
 			# contained in /APPS/metadata/RESPS/
 			resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
-			stationName.append(resfilename)
+			tmpname = re.split('RESP.', resfilename) 	
+			stationName.append(tmpname[1].strip())	
 			self.stationName = stationName	
 			os.chdir(self.resppath)
 			print "stream[%d]" % i
@@ -195,8 +196,8 @@ class HeliPlot(object):
 					right_vertical_lables=False, number_of_ticks=7, 
 					one_tick_per_line=True, color=['k'],
 					show_y_UTC_label=False, size=(self.resx,self.resy), 
-					dpi=self.pix,
-					title=self.stream[i][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
+					dpi=self.pix, title_size=8,
+					title=self.stream[i][0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
 					outfile=self.stationName[i]+".jpg")
 	
 	def gifHTML(self):

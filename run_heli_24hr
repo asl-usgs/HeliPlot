@@ -1,6 +1,5 @@
 #!/bin/ksh
 
-
 SEEDRESP=/dcc/metadata/responses
 WWW_DOCS=/scratch/heli/projs/helis
 ~heli/bin/julday -82800|read YEAR  DAY HR MIN SEC
