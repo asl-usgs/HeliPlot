@@ -1,37 +1,37 @@
 #!/usr/bin/python
-from functools import wraps
 import os, re
+import multiprocessing
+import time
 import subprocess
-import signal
-import errno
 
-class TimeoutError(Exception):
-	pass
+'''
+def getMetadata(func, args):
+	result = func(*args)
+	print func.__name__
+	print args
+	print result
+	return '%s says that %s%s = %s' % (multiprocessing.current_process().name, func.__name__, args, result)	
 
-class stationNames(object): 
-	def timeout(seconds=5, error_message=os.strerror(errno.ETIME)):
-		def decorator(func):
-			def _handle_timeout(signum, frame):
-				raise TimeoutError(error_message)	
+def getMetadataStar(args):
+	return getMetadata(*args)
+'''
+def call_it(instance, name, args=(), kwargs=None):
+	# Indirect caller for instance methods and multiprocessing"
+	if kwargs is None:
+		kwargs = {}
+	return getattr(instance, name)(*args, **kwargs)
 
-			def wrapper(*args, **kwargs):
-				signal.signal(signal.SIGALRM, _handle_timeout)
-				signal.alarm(seconds)
-				try:
-					result = func(*args, **kwargs)
-				finally:
-					signal.alarm(0)
-				return result
-
-			return wraps(func)(wrapper)
-		return decorator
-
+class stationNames(object):
+	def __init__(self):
+		self.prevnetwork = []	# store previous networks 
+		self.rmnetwork = []	# list of networks that will be removed from query list
+		self.getmetadata = ""	# getmetadata executable
+		self.datalesspath = ""	# dataless seed path
+			
 	def openFiles(self):
 		finwrite = open('stationNames.txt', 'w')
-		finconfg = open('prestation.cfg', 'r')
-		network = []	# list of networks 
-		rmnetwork = [] 	# list of networks that will be removed from query list
-		for line in finconfg:
+		finconfig = open('prestation.cfg', 'r')
+		for line in finconfig:
 			if(line[0] != '#'):
 				if line != '\n':
 					newline = re.split('=', line)
@@ -43,39 +43,60 @@ class stationNames(object):
 						tmprm = re.split(',', newline[1])
 						for i in range(len(tmprm)):
 							tmprm[i] = tmprm[i].strip()
-							rmnetwork.append(tmprm[i])
-							self.rmnetwork = rmnetwork	
+							self.rmnetwork.append(tmprm[i])
+						print self.rmnetwork
 
-	def getLocations(self):
+	def getLocations(self, network, rmnetwork):
+		#" > stationsout.txt"
+		tmp = re.split('\\.', network)	
+		network = tmp[0].strip()	
+		if(network[0] == "_"):
+			tmp = network
+			tmp = re.split('_', tmp)
+			network = tmp[1].strip()
+		print "network  = " + str(network)
+		print "rmnetwork = " + str(rmnetwork)
+		self.prevnetwork.append(network)
+		print "self.prevnetwork len = " + str(len(self.prevnetwork))
+		count = 0	
+		if network[0:2] == rmnetwork:
+			count = count + 1	
+			print "count = 0: EXIT"	
+			print	
+			return "count = 0: EXIT"	
+		if count == 0:
+			print "count != 0: PRINT and EXIT"	
+			print	
+			return "count != 0: PRINT and EXIT"
+
+	def parallelGetLocations(self):
 		dirlist = os.listdir(self.datalesspath)
 		dirlist.sort()
 		listlen = len(dirlist)
-		for i in range(listlen):
-			print "\n"	
-			print dirlist[i]	
-			count = 0
-			# Remove all networks with rmnetwork key
-			# Every line can only have 1 occrurrence within rmnetwork
-			for j in range(len(self.rmnetwork)):
-				print "dirlist[%d][0:2] = " % i, dirlist[i][0:2]
-				print "self.rmnetwork[%d] = " % j, self.rmnetwork[j]
-				if dirlist[i][0:2] == self.rmnetwork[j]:
-					count = count + 1
-					print "break since count = " + str(count) 
-					break
-				print "count = " + str(count)
-				if count == 0:
-					try:
-						print self.getmetadata + " -sl " + self.datalesspath + dirlist[i]	
-						proc = subprocess.Popen([self.getmetadata + " -sl " + self.datalesspath + dirlist[i]], stdout=subprocess.PIPE, shell=True)
-						(out, err) = proc.communicate()
-						print out
-					except Exception as e:
-						print "*****Exception found = " + str(e)
-					break
+		cpu_count = multiprocessing.cpu_count()
+		PROCESSES = cpu_count
+		pool = multiprocessing.Pool(PROCESSES)
+		#TASKS = [(self.getLocations, (dirlist[i], rmnetwork)) for i in range(listlen) for rmnetwork in self.rmnetwork]	# tasks for multiprocessing pool (need pickle method to call func)
+		async_results = [pool.apply_async(call_it, args=(self, 'getLocations', (dirlist[i], rmnetwork))) for i in range(listlen) for rmnetwork in self.rmnetwork]
+		pool.close()
+		pool.join()	
+		map(multiprocessing.pool.ApplyResult.wait, async_results)
+		results = [r.get() for r in async_results]
+		'''	
+		for out in results:	
+			print out 
+		'''	
+		'''
+		# Create pool
+		try:	
+			#imap_it = pool.imap(getMetadataStar, TASKS)	
+			#for out in imap_it:
+				#print '\t', out
+		except Exception as e:
+			print "*****Exeption found = " + str(e)
+		'''
 
 if __name__ == '__main__':
 	stations = stationNames()
 	stations.openFiles()
-	stations.timeout()	
-	stations.getLocations()	
+	stations.parallelGetLocations()
