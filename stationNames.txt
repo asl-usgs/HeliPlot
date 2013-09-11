@@ -1,0 +1,202 @@
+CU BBGH Gun Hill, Barbados
+CU MTDJ Mount Denham, Jamaica
+CU GTBY Guantanamo Bay, Cuba
+CU GRGR Grenville, Grenada
+CU TGUH Tegucigalpa, Honduras
+CU GRTK Grand Turk, Turks and Caicos Islands
+CU SDDR Presa de Sabenta, Dominican Republic
+CU BCIP Isla Barro Colorado, Panama
+CU ANWB Willy Bob, Antigua and Barbuda
+IW MOOW Moose Ponds, Wyoming, USA
+IW REDW Red Top Meadow, Wyoming, USA
+IW IMW Indian Meadow, Wyoming, USA
+IW PHWY Pilot Hill, Wyoming, USA
+IW FLWY Flagg Ranch, Wyoming, USA
+IW MFID Camas Ranch, Mayfield, ID, USA
+IW LOHW Long Hollow, Wyoming, USA
+IW DLMT Dillon, Montana, USA
+IW FXWY Fox Creek, Wyoming, USA
+IW SMCO Snowmass, Colorado, USA
+IW TPAW Teton Pass, Wyoming, USA
+IW SNOW Snow King Mountain, Wyoming, USA
+IW PLID Pearl Lake, Idaho, USA
+IW RWWY Rawlins, Wyoming, USA
+IC BJT Baijiatuan, Beijing, China
+IC HIA Hailar, Neimenggu Autonomous Region, China
+IC XAN Xi'an, China
+IC ENH Enshi, Hubei Province, China
+IC LSA Tibet, China
+IC KMI Kunming, Yunnan Province, China
+IC QIZ Qiongzhong, Hainan Province, China
+IC WMQ Urumqi, Xinjiang Province, China
+IC SSE Shanghai, China
+IC MDJ Mudanjiang, Heilongjiang Province, China
+NE MANTK Longfellow Rd., Natick, MA
+NE BRYW Smithfield, RI, USA
+NE WES Weston Observatory, Weston, MA, USA
+NE EMMW Machias, ME, USA
+NE BCX Chestnut Hill, MA, USA
+NE BCDNQ Boston College, Chestnut Hill, MA
+NE VT1 Waterbury, VT, USA
+NE MAFXB Chestnut St., Foxboro, MA
+NE WVL Waterville, ME, USA
+NE HNH Hanover, NH, USA
+NE WSPT Westport, CT, USA
+NE ORNO Orno, ME, USA
+NE MATOP Pemberton Rd, Topsfield, MA
+NE BRY Smithfield, RI, USA
+NE WESNQ Weston Observatory, Weston, MA
+NE YLE Yale, Connecticut, U.S.A.
+NE NHFNK Lake Shore Dr., Franklin, NH
+NE PQI Presque Isle, ME, USA
+NE FFD Franklin Falls Dam, NH, USA
+NE MAACT Algonquin Rd, Acton, MA
+NE DUNH Durham, NH, USA
+NE QUA2 Belchertown, MA, USA
+NE MAGLO Stanwood St., Gloucester, MA
+NE TRY Troy, NY, USA
+US PKME Peaks-Kenny State Park, Maine, USA
+US ERPA Erie, Pennsylvania, USA
+US BW06 Boulder Array Site 6 (Pinedale Array Site 6), Wyoming, USA
+US ECSD EROS Data Center, Sioux Falls, South Dakota, USA
+US WUAZ Wupatki, Arizona, USA
+US CBN Corbin (Fredericksburg Observatory), Virginia, USA
+US MVCO Mesa Verde, Colorado, USA
+US OXF Oxford, Mississippi, USA
+US HLID Hailey, Idaho, USA
+US SDCO Great Sand Dunes National Park, Colorado, USA
+US OGNE Ogallala, Nebraska, USA
+US HDIL Hopedale, Illinois, USA
+US EYMN Ely, Minnesota, USA
+US DUG Dugway, Tooele County, Utah, USA
+US EGMT Eagleton, Montana, USA
+US LKWY Lake (Yellowstone--Lake), Yellowstone National Park, Wyoming
+US CBKS Cedar Bluff, Kansas, USA
+US BINY Binghamton, New York, USA
+US BRAL Brewton, Alabama, USA
+US AGMN Agassiz National Wildlife Refuge, Minnesota, USA
+US VBMS Vicksburg, Mississippi
+US BMO Blue Mountains Array (Baker), Oregon, USA
+US TPNV Topopah Spring, Nevada, USA
+US LAO LASA Array, Montana, USA
+US AMTX Amarillo, Texas, USA
+US NATX Nacogdoches, Texas, USA
+US HAWA Hanford, Washington, USA
+US EGAK Eagle, Central Alaska, Alaska, USA
+US TZTN Tazewell, Tennessee, USA
+US MIAR Mount Ida, Arkansas, USA
+US JCT Junction, Texas, USA
+US BLA Blacksburg, Virginia, USA
+US GLMI Grayling, Michigan, USA
+US MNTX Cornudas Mountains, Texas, USA
+US NHSC New Hope, South Carolina, USA
+US CNNC Cliffs of the Neuse, North Carolina, USA
+US COWI Conover, Wisconsin, USA
+US ACSO Alum Creek State Park, Ohio, USA
+US WMOK Wichita Mountains, Oklahoma, USA
+US NEW Newport, Washington, USA
+US SCIA State Center, Iowa, USA
+US GOGA Godfrey, Georgia, USA
+US LONY Lake Ozonia, New York, USA
+US NLWA Neilton Lookout, Washington, USA
+US LRAL Lakeview Retreat, Alabama, USA
+US JFWS Jewell Farm, Wisconsin, USA
+US KVTX Kingsville, Texas, USA
+US HWUT Hardware Ranch, Cache County, Utah, USA
+US MSO Missoula, Montana, USA
+US MYNC Murphy, North Carolina, USA
+US WRAK Wrangell Island, Southeastern Alaska, Alaska, USA
+US ISCO Idaho Springs, Colorado, USA
+US AAM Ann Arbor, Michigan, USA
+US LBNH Lisbon, New Hampshire, USA
+US ELK Elko, Nevada, USA
+US WVOR Wild Horse Valley, Oregon, USA
+US LTX Lajitas, Texas, USA
+US AHID Auburn Hatchery, Idaho, USA
+US RLMT Red Lodge, Montana, USA
+US CBM Caribou, Maine, USA
+US DGMT Dagmar, Montana, USA
+US BOZ Bozeman, Montana, USA
+US KSU1 Kansas State University--Konza Prairie, Kansas, USA
+US MCWV Mont Chateau, West Virginia, USA
+IU SSPA Standing Stone, Pennsylvania
+IU GNI Garni, Armenia
+IU KNTN Kanton, Kiritibati
+IU RAO Raoul, Kermadec Islands
+IU YAK Yakutsk, Russia
+IU KMBO Kilima Mbogo, Kenya
+IU HRV Adam Dziewonski Observatory (Oak Ridge), Massachusetts, USA
+IU GRFO Grafenberg, Germany
+IU MSKU Masuku, Gabon
+IU PMSA Palmer Station, Antarctica
+IU MIDW Midway Island, USA
+IU INCN Inchon, Republic of Korea
+IU SAML Samuel, Brazil
+IU CHTO Chiang Mai, Thailand
+IU LVC Limon Verde, Chile
+IU FUNA Funafuti, Tuvalu
+IU WCI Wyandotte Cave, Indiana, USA
+IU FURI Mt. Furi, Ethiopia
+IU KIEV Kiev, Ukraine
+IU RSSD Black Hills, South Dakota, USA
+IU HNR Honiara, Solomon Islands
+IU CASY Casey, Antarctica
+IU SBA Scott Base, Antarctica
+IU PET Petropavlovsk, Russia
+IU CCM Cathedral Cave, Missouri, USA
+IU PTCN Pitcairn Island, South Pacific
+IU TSUM Tsumeb, Namibia
+IU KBS Ny-Alesund, Spitzbergen, Norway
+IU JOHN Johnston Island, USA
+IU OTAV Otavalo, Ecuador
+IU RAR Rarotonga, Cook Islands
+IU XMAS Kiritimati Island, Republic of Kiribati
+IU ULN Ulaanbaatar, Mongolia
+IU NWAO Narrogin, Australia
+IU TIXI Tiksi, Russia
+IU LCO Las Campanas Astronomical Observatory, Chile
+IU PTGA Pitinga, Brazil
+IU MAJO Matsushiro, Japan
+IU COLA College Outpost, Alaska, USA
+IU MBWA Marble Bar, Western Australia
+IU BILL Bilibino, Russia
+IU TATO Taipei, Taiwan
+IU CTAO Charters Towers, Australia
+IU MAKZ Makanchi, Kazakhstan
+IU ANMO Albuquerque, New Mexico, USA
+IU TRQA Tornquist, Argentina
+IU POHA Pohakuloa, Hawaii, USA
+IU DAV Davao, Philippines
+IU PAB San Pablo, Spain
+IU AFI Afiamalu, Samoa
+IU KIP Kipapa, Hawaii, USA
+IU SJG San Juan, Puerto Rico
+IU LSZ Lusaka, Zambia
+IU KBL Kabul, Afghanistan
+IU SDV Santo Domingo, Venezuela
+IU ADK Adak, Aleutian Islands, Alaska
+IU COR Corvallis, Oregon, USA
+IU TUC Tucson, Arizona
+IU MA2 Magadan, Russia
+IU WVT Waverly, Tennessee, USA
+IU SFJD Sondre Stromfjord, Greenland
+IU MACI Morro de la Arena, Canary Islands
+IU PMG Port Moresby, New Guinea
+IU QSPA South Pole Remote Earth Science Observatory (Quiet Zone)
+IU GUMO Guam, Mariana Islands
+IU KEV Kevo, Finland
+IU RCBR Riachuelo, Brazil
+IU DWPF Disney Wilderness Preserve, Florida, USA
+IU TARA Tarawa Island, Republic of Kiribati
+IU SLBS Sierra la Laguna Baja California Sur, Mexico
+IU HKT Hockley, Texas
+IU KONO Kongsberg, Norway
+IU TRIS Tristan da Cunha
+IU YSS Yuzhno Sakhalinsk, Russia
+IU PAYG Puerto Ayora, Galapagos Islands
+IU WAKE Wake Island
+IU KOWA Kowa, Mali
+IU BBSR Bermuda Institute of Ocean Sciences, St George's Bermuda
+IU TEIG Tepich, Yucatan, Mexico
+IU ANTO Ankara, Turkey
+IU SNZO South Karori, New Zealand

@@ -223,12 +223,19 @@ class HeliPlot(object):
 		fin = open('station.cfg', 'r')
 		data = {}	# dict of cwb config data
 		data['station'] = []	# list for multiple stations
+		STFLAG = False	
 		for line in fin:
-			if (line[0] != '#'):
+			if line[0] == '#':
 				if line != '\n':
 					newline = re.split('#', line)
-					if "station" in newline[1]:
-						data['station'].append(newline[0].strip())
+					if "Station Data" in newline[1]:
+						STFLAG = True
+			
+			elif line[0] != '#':
+				if line != '\n':
+					newline = re.split('#', line)	
+					if STFLAG:
+						data['station'].append(line.strip())
 					elif "duration" in newline[1]:
 						data['duration'] = newline[0].strip()
 					elif "ipaddress" in newline[1]:
@@ -273,9 +280,15 @@ class HeliPlot(object):
 						data['cwbquery'] = newline[0].strip()
 					elif "responses" in newline[1]:
 						data['resppath'] = newline[0].strip()
-	
+					
 		# Store data in variables
-		self.stationinfo = data['station']
+		self.stationdata = data['station']
+		self.stationinfo = []
+		self.stationlocation = []
+		for s in self.stationdata:	
+			tmpstation = re.split('\t', s)
+			self.stationinfo.append(tmpstation[0].strip())
+			self.stationlocation.append(tmpstation[1].strip())
 		self.duration = float(data['duration'])
 		self.ipaddress = str(data['ipaddress'])
 		self.httpport = int(data['httpport'])

@@ -3,18 +3,8 @@ import os, re
 import multiprocessing
 import time
 import subprocess
+import signal
 
-'''
-def getMetadata(func, args):
-	result = func(*args)
-	print func.__name__
-	print args
-	print result
-	return '%s says that %s%s = %s' % (multiprocessing.current_process().name, func.__name__, args, result)	
-
-def getMetadataStar(args):
-	return getMetadata(*args)
-'''
 def call_it(instance, name, args=(), kwargs=None):
 	# Indirect caller for instance methods and multiprocessing"
 	if kwargs is None:
@@ -23,13 +13,13 @@ def call_it(instance, name, args=(), kwargs=None):
 
 class stationNames(object):
 	def __init__(self):
-		self.prevnetwork = []	# store previous networks 
-		self.rmnetwork = []	# list of networks that will be removed from query list
+		self.result_list = []	# list of getmetadata results	
+		self.getnetwork = []	# list of networks to extract metadata
+		self.rmnetwork = []	# list of networks that will be removed from query
 		self.getmetadata = ""	# getmetadata executable
-		self.datalesspath = ""	# dataless seed path
-			
+		self.datalesspath = ""	# dataless seed path 
+
 	def openFiles(self):
-		finwrite = open('stationNames.txt', 'w')
 		finconfig = open('prestation.cfg', 'r')
 		for line in finconfig:
 			if(line[0] != '#'):
@@ -46,57 +36,69 @@ class stationNames(object):
 							self.rmnetwork.append(tmprm[i])
 						print self.rmnetwork
 
-	def getLocations(self, network, rmnetwork):
-		#" > stationsout.txt"
-		tmp = re.split('\\.', network)	
-		network = tmp[0].strip()	
-		if(network[0] == "_"):
-			tmp = network
-			tmp = re.split('_', tmp)
-			network = tmp[1].strip()
-		print "network  = " + str(network)
-		print "rmnetwork = " + str(rmnetwork)
-		self.prevnetwork.append(network)
-		print "self.prevnetwork len = " + str(len(self.prevnetwork))
-		count = 0	
-		if network[0:2] == rmnetwork:
-			count = count + 1	
-			print "count = 0: EXIT"	
-			print	
-			return "count = 0: EXIT"	
-		if count == 0:
-			print "count != 0: PRINT and EXIT"	
-			print	
-			return "count != 0: PRINT and EXIT"
-
-	def parallelGetLocations(self):
+	def getLocations(self):
 		dirlist = os.listdir(self.datalesspath)
 		dirlist.sort()
 		listlen = len(dirlist)
+		for i in range(listlen):
+			#print "\n"
+			count = 0
+			# Remove all networks with rmnetwork key
+			# Every line can only have 1 occurrence within rmnetwork
+			for j in range(len(self.rmnetwork)):
+				tmp = re.split('\\.', dirlist[i])
+				network = tmp[0].strip()
+				if(network[0] == "_"):
+					tmp = re.split('_', network)
+					network = tmp[1].strip()
+				#print "(network[%d] = " % i, network + ") " + "(self.rmnetwork[%d] = " % j, self.rmnetwork[j] + ") " 
+				if network == self.rmnetwork[j]:
+					i = i + 1 
+					break
+				else:
+					if j == (len(self.rmnetwork) - 1):
+						self.getnetwork.append(dirlist[i])
+						i = i + 1
+						break
+		
+		print	
+		for x in self.getnetwork:
+			print x	
+		print
+
+	def getMetadata(self, network):
+		try:	
+			print self.getmetadata + " -sl " + self.datalesspath + network	
+			proc = subprocess.Popen([self.getmetadata + " -sl " + self.datalesspath + network], stdout=subprocess.PIPE, shell=True)
+			(out, err) = proc.communicate()
+			return out
+		except Exception as e:
+			return "*****Exception found = " + str(e)
+	
+	def log_result(self, result):
+		# This is called whenever getMetadata() returns a result
+		# result_list is modified only by the main process, not the pool workers
+		self.result_list.append(result)
+	
+	def parallelMetadata(self):
 		cpu_count = multiprocessing.cpu_count()
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
-		#TASKS = [(self.getLocations, (dirlist[i], rmnetwork)) for i in range(listlen) for rmnetwork in self.rmnetwork]	# tasks for multiprocessing pool (need pickle method to call func)
-		async_results = [pool.apply_async(call_it, args=(self, 'getLocations', (dirlist[i], rmnetwork))) for i in range(listlen) for rmnetwork in self.rmnetwork]
-		pool.close()
-		pool.join()	
-		map(multiprocessing.pool.ApplyResult.wait, async_results)
-		results = [r.get() for r in async_results]
-		'''	
-		for out in results:	
-			print out 
-		'''	
-		'''
-		# Create pool
 		try:	
-			#imap_it = pool.imap(getMetadataStar, TASKS)	
-			#for out in imap_it:
-				#print '\t', out
-		except Exception as e:
-			print "*****Exeption found = " + str(e)
-		'''
+			async_results = [pool.apply_async(call_it, args=(self, 'getMetadata', (network,)), callback=self.log_result) for network in self.getnetwork]
+			pool.close()
+			pool.join()
+
+			stationout = open('stationNames.txt', 'w')
+			for result in self.result_list:	
+				stationout.write(result)
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt, terminating workers"
+			pool.terminate()
+			pool.join()
 
 if __name__ == '__main__':
 	stations = stationNames()
 	stations.openFiles()
-	stations.parallelGetLocations()
+	stations.getLocations()
+	stations.parallelMetadata()
