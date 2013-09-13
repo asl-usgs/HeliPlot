@@ -21,16 +21,6 @@ IW TPAW Teton Pass, Wyoming, USA
 IW SNOW Snow King Mountain, Wyoming, USA
 IW PLID Pearl Lake, Idaho, USA
 IW RWWY Rawlins, Wyoming, USA
-IC BJT Baijiatuan, Beijing, China
-IC HIA Hailar, Neimenggu Autonomous Region, China
-IC XAN Xi'an, China
-IC ENH Enshi, Hubei Province, China
-IC LSA Tibet, China
-IC KMI Kunming, Yunnan Province, China
-IC QIZ Qiongzhong, Hainan Province, China
-IC WMQ Urumqi, Xinjiang Province, China
-IC SSE Shanghai, China
-IC MDJ Mudanjiang, Heilongjiang Province, China
 NE MANTK Longfellow Rd., Natick, MA
 NE BRYW Smithfield, RI, USA
 NE WES Weston Observatory, Weston, MA, USA
@@ -55,6 +45,16 @@ NE DUNH Durham, NH, USA
 NE QUA2 Belchertown, MA, USA
 NE MAGLO Stanwood St., Gloucester, MA
 NE TRY Troy, NY, USA
+IC BJT Baijiatuan, Beijing, China
+IC HIA Hailar, Neimenggu Autonomous Region, China
+IC XAN Xi'an, China
+IC ENH Enshi, Hubei Province, China
+IC LSA Tibet, China
+IC KMI Kunming, Yunnan Province, China
+IC QIZ Qiongzhong, Hainan Province, China
+IC WMQ Urumqi, Xinjiang Province, China
+IC SSE Shanghai, China
+IC MDJ Mudanjiang, Heilongjiang Province, China
 US PKME Peaks-Kenny State Park, Maine, USA
 US ERPA Erie, Pennsylvania, USA
 US BW06 Boulder Array Site 6 (Pinedale Array Site 6), Wyoming, USA

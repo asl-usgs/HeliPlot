@@ -92,6 +92,7 @@ class readStations(object):
 		cfgout.write(self.resx + "\t" + self.resxcmt + "\n")
 		cfgout.write(self.resy + "\t" + self.resycmt + "\n")
 		cfgout.write(self.pix + "\t" + self.pixcmt + "\n")
+		cfgout.write(self.imgformat + "\t" + self.imgformatcmt + "\n")	
 		cfgout.write(self.vertrange + "\t" + self.vertrangecmt + "\n\n")
 
 		# Prefilter desgin (bandpass with 4 corner frequencies)
@@ -179,6 +180,8 @@ class readStations(object):
 						self.resy = newline[1].strip()
 					elif "pix" in newline[0]:
 						self.pix = newline[1].strip()
+					elif "imgformat" in newline[0]:
+						self.imgformat = newline[1].strip()
 					elif "vert" in newline[0]:
 						self.vertrange = newline[1].strip()
 					elif "prefiltf1" in newline[0]:
@@ -213,6 +216,7 @@ class readStations(object):
 		self.resxcmt = "# xresolution"
 		self.resycmt = "# yresolution"
 		self.pixcmt = "# pixels per inch"
+		self.imgformatcmt = "# image format (*.jpg, *.png, etc.)"	
 		self.vertrangecmt = "# vertical scaling range"
 		self.seedpathcmt = "# seed path"
 		self.plotspathcmt = "# plots path"

@@ -27,15 +27,15 @@ class HeliPlot(object):
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
 		timedate = tmp.replace("-", "/")
-		#datetimeQuery = timedate.strip()
-		datetimeQuery = "2013/08/17 00:00:00"
+		datetimeQuery = timedate.strip()
+		#datetimeQuery = "2013/08/17 00:00:00"
 		self.datetimeQuery = datetimeQuery	
 		print "\ndatetimeQuery = " + str(datetimeQuery) + "\n"
 		tmpUTC = datetimeQuery
 		tmpUTC = tmpUTC.replace("/", "")
 		tmpUTC = tmpUTC.replace(" ", "_")
 		self.datetimeUTC = UTCDateTime(str(tmpUTC))
-
+		
 		for i in range(stationlen):	# cwbquery on each operable station
 			try:
 				proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+self.stationinfo[i]+'"' + " -b " + '"'+datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t ms -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
@@ -80,9 +80,9 @@ class HeliPlot(object):
 		for i in range(streamlen):
 			index = str(i)
 			tracelen = stream[i].count()
-			print "number of traces = " + str(tracelen)
-			print "len(trace[i]) = " + str(len(trace[index]))
-			print strsel
+			#print "number of traces = " + str(tracelen)
+			#print "len(trace[i]) = " + str(len(trace[index]))
+			#print strsel
 			if tracelen == 1:
 				if trace[index].stats['sampling_rate'] == 0.0:
 					stream[i].remove(trace[index])
@@ -168,16 +168,16 @@ class HeliPlot(object):
 			index = str(i)
 			tracelen = self.stream[i].count()
 			name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
-			print "name = " + str(name)
-			print self.stream[i]
+			#print "name = " + str(name)
+			#print self.stream[i]
 			if tracelen == 1:
 				tr = self.stream[i][0]
 				datalen = tr.count()
-				print "datalen = " + str(datalen)
+				#print "datalen = " + str(datalen)
 				j = 0
 				for j in range(datalen):	# mult data points in trace
 					self.stream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
-				print "\n"
+				#print "\n"
 		
 		# --------------------------------------------------------
 		# Plot displacement data	
@@ -198,20 +198,7 @@ class HeliPlot(object):
 					show_y_UTC_label=False, size=(self.resx,self.resy), 
 					dpi=self.pix, title_size=8,
 					title=self.stream[i][0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
-					outfile=self.stationName[i]+".jpg")
-	
-	def gifHTML(self):
-		# --------------------------------------------------------
-		# Converts .jpg files produced by HeliPlot to .gif files
-		# to be used for the LISS HTML. To generate html files
-		# we will call a version of the run_heli_24hr shell script
-		# --------------------------------------------------------
-		os.chdir(self.home)
-		try:	
-			process = subprocess.Popen(["./gifconvert.sh"], stderr=subprocess.PIPE, shell=True)
-			(out, err) = process.communicate()
-		except Exception as e:
-			print "*****Exception found = " + str(e)
+					outfile=self.stationName[i]+"."+self.imgformat)
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -262,6 +249,8 @@ class HeliPlot(object):
 						data['resy'] = newline[0].strip()
 					elif "pixels" in newline[1]:
 						data['pix'] = newline[0].strip()
+					elif "image format" in newline[1]:
+						data['imgformat'] = newline[0].strip()
 					elif "vertical" in newline[1]:
 						data['vertrange'] = newline[0].strip()
 					elif "c1" in newline[1]:
@@ -297,6 +286,7 @@ class HeliPlot(object):
 		self.resx = int(data['resx'])
 		self.resy = int(data['resy'])
 		self.pix = int(data['pix'])
+		self.imgformat = str(data['imgformat'])	
 		self.vertrange = float(data['vertrange'])
 		self.c1 = float(data['c1'])
 		self.c2 = float(data['c2'])
@@ -321,8 +311,7 @@ class HeliPlot(object):
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	heli.cwbQuery()
-	heli.pullTraces()	
-	heli.freqDeconvFilter()	
-	heli.magnifyPlot()
-	heli.gifHTML()	
+	heli.cwbQuery()		# query stations
+	heli.pullTraces()	# analyze trace data and remove empty traces	
+	heli.freqDeconvFilter()	# deconvole/filter trace data	
+	heli.magnifyPlot()	# magnify trace data and plot
