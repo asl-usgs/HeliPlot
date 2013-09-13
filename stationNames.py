@@ -60,7 +60,6 @@ class stationNames(object):
 						self.getnetwork.append(dirlist[i])
 						i = i + 1
 						break
-		
 		print	
 		for x in self.getnetwork:
 			print x	
