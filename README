@@ -1,9 +1,9 @@
 Project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will 
 be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). There are 3 main config files that are parsed:
 
-prestation.cfg		(gives all data pertaining to station information (i.e. filter, pathnames, etc.))
+prestation.cfg    (gives all data pertaining to station information (i.e. filter, pathnames, etc.))
 stationNames.txt  (gives station names from getMetadata.py and prestation.cfg)
-station.cfg 			(contains all pre-data from prestation.cfg and stationNames.txt)
+station.cfg       (contains all pre-data from prestation.cfg and stationNames.txt)
 
 There are two main bottlenecks within the code that increase processing time significantly. The first pertains to cwbQuery which queries data for each operable station (time increases as number of stations increase), the second deals with the deconvolution/prefiltering of the data (time increaeses as the number of traces per stream increase, this takes the most time when running HeliPlot.py). Times on both of these processes can be significantly reduced by applying multiprocessing pools.
 
