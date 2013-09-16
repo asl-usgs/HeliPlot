@@ -9,7 +9,7 @@ There are two main bottlenecks within the code that increase processing time sig
 
 The project layout is as follows:
 
-stationNames.py		(uses getMetadata.py from mseedpythontools to pull metadata from operable stations, input: prestation.cfg, output: stationNames.txt)
-readStations.py		(reads station info from stationNames.txt and prestation.cfg, output: station.cfg)
-HeliPlot.py				(takes info from station.cfg and creates heli plots for each station, output: *.jpg)
-run_heli_24hr.py	(pulls *.jpg files from HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
+stationNames.py   (uses getMetadata.py from mseedpythontools to pull metadata from operable stations, input: prestation.cfg, output: stationNames.txt)
+readStations.py   (reads station info from stationNames.txt and prestation.cfg, output: station.cfg)
+HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, output: *.jpg)
+run_heli_24hr.py  (pulls *.jpg files from HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
