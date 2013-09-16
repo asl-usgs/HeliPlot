@@ -1,1 +1,15 @@
-This project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). There are three main config files that are parsed: stationNames.txt (this gives all the station names pulled from aslres01), prestation.cfg (lists all station info from channelID to the type of filter being used on the signals), station.cfg (contains all pre data from prestation.cfg as well as all station names from stationNames.txt). Currently working on multiprocessing for the filters on each station stream. 
+Project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will 
+be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). There are 3 main config files that are parsed:
+
+prestation.cfg		(gives all data pertaining to station information (i.e. filter, pathnames, etc.))
+stationNames.txt  (gives station names from getMetadata.py and prestation.cfg)
+station.cfg 			(contains all pre-data from prestation.cfg and stationNames.txt)
+
+There are two main bottlenecks within the code that increase processing time significantly. The first pertains to cwbQuery which queries data for each operable station (time increases as number of stations increase), the second deals with the deconvolution/prefiltering of the data (time increaeses as the number of traces per stream increase, this takes the most time when running HeliPlot.py). Times on both of these processes can be significantly reduced by applying multiprocessing pools.
+
+The project layout is as follows:
+
+stationNames.py		(uses getMetadata.py from mseedpythontools to pull metadata from operable stations, input: prestation.cfg, output: stationNames.txt)
+readStations.py		(reads station info from stationNames.txt and prestation.cfg, output: station.cfg)
+HeliPlot.py				(takes info from station.cfg and creates heli plots for each station, output: *.jpg)
+run_heli_24hr.py	(pulls *.jpg files from HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
