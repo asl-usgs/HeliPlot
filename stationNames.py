@@ -5,8 +5,8 @@ import time
 import subprocess
 import signal
 
+# Indirect caller for instance methods and multiprocessing
 def call_it(instance, name, args=(), kwargs=None):
-	# Indirect caller for instance methods and multiprocessing"
 	if kwargs is None:
 		kwargs = {}
 	return getattr(instance, name)(*args, **kwargs)
@@ -76,7 +76,7 @@ class stationNames(object):
 			return "*****Exception found = " + str(e)
 	
 	def log_result(self, result):
-		# This is called whenever getMetadata() returns a result
+		# This is called when getMetadata() returns a result
 		# result_list is modified only by the main process, not the pool workers
 		self.result_list.append(result)
 	

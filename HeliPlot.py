@@ -2,48 +2,62 @@
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
+from multiprocessing import Manager
+import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
+import signal
+
+# Unpack self from arguments and call method cwbQuery()
+def unwrap_self_cwbQuery(args, **kwargs):
+	return HeliPlot.cwbQuery(*args, **kwargs)
+
+# Unpack self from arguments and call method freqDeconvFilter() 
+def unwrap_self_freqDeconvFilter(args, **kwargs):
+	return HeliPlot.freqDeconvFilter(*args, **kwargs)
 
 # ---------------------------------------------------------
 # HeliPlot() uses CWBQuery to query station streams,
 # streams are then filtered and plotted using ObsPy
 # ---------------------------------------------------------
 class HeliPlot(object):
-	def cwbQuery(self):
+	def cwbQuery(self, station):
 		# ------------------------------------------------
 		# Pull specific station seed file using CWBQuery
 		# ------------------------------------------------
-		self.home = os.getcwd()	
+		try:
+			proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t ms -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
+			(out, err) = proc.communicate()
+			print out	
+		except Exception as e:
+			print "*****Exception found = " + str(e)
+
+	def parallelcwbQuery(self):
+		# --------------------------------------------------
+		# Initialize all variables needed to run cwbQuery()
+		# --------------------------------------------------
+		self.home = os.getcwd()
 		files = glob.glob(self.seedpath+"*")
 		for f in files:
-			os.remove(f)	# remove temp seed files from SeedFiles dir
+			os.remove(f)	# remove tmp seed files from SeedFiles dir
 		stationlen = len(self.stationinfo)
-	
-		# Get current date/time and subtract a day
-		# this will always pull the current time on the system
-		time = datetime.now() - timedelta(days=1)
-		timestring = str(time)
-		timestring = re.split("\\.", timestring)
-		tmp = timestring[0]
-		timedate = tmp.replace("-", "/")
-		datetimeQuery = timedate.strip()
-		#datetimeQuery = "2013/08/17 00:00:00"
-		self.datetimeQuery = datetimeQuery	
-		print "\ndatetimeQuery = " + str(datetimeQuery) + "\n"
-		tmpUTC = datetimeQuery
-		tmpUTC = tmpUTC.replace("/", "")
-		tmpUTC = tmpUTC.replace(" ", "_")
-		self.datetimeUTC = UTCDateTime(str(tmpUTC))
-		
-		for i in range(stationlen):	# cwbquery on each operable station
-			try:
-				proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+self.stationinfo[i]+'"' + " -b " + '"'+datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t ms -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
-				(out, err) = proc.communicate()
-				print out
-			except Exception as e:
-				print "*****Exception found = " + str(e)
 
+		# -----------------------------------------------
+		# Create multiprocessing pools to run multiple 
+		# instances of cwbQuery()
+		# -----------------------------------------------
+		cpu_count = multiprocessing.cpu_count()
+		PROCESSES = cpu_count
+		pool = multiprocessing.Pool(PROCESSES)
+		try:
+			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))	
+			pool.close()
+			pool.join()
+		except KeyboardInterrupt:
+			print "Caught KeyboardINterrupt, terminating workers"
+			pool.terminate()
+			pool.join()
+	
 	def pullTraces(self):
 		# ------------------------------------------------
 		# Open seed files from cwbQuery and pull trace
@@ -92,7 +106,7 @@ class HeliPlot(object):
 						stream[i].remove(trace[index][j])
 		self.stream = stream
 
-	def freqDeconvFilter(self):
+	def freqResponse(self):
 		# -----------------------------------------------------------
 		# Pull frequency response for station and run a simulation
 		# to deconvolve signal, after deconvolution filter signal
@@ -119,10 +133,8 @@ class HeliPlot(object):
 		# -------------------------------------------------------------------
 		# Loop through stations and get frequency responses for each stream
 		# -------------------------------------------------------------------
-		# Pre-filter bandpass corner frequencies eliminate end frequency
-		# spikes (i.e. H(t) = F(t)/G(t), G(t) != 0)
-		# -------------------------------------------------------------------
 		stationName = []	# station names for output plots
+		self.resp = []		# station frequency responses for deconvolution	
 		for i in range(self.streamlen):
 			# NOTE: For aslres01 frequency responses are 
 			# contained in /APPS/metadata/RESPS/
@@ -131,31 +143,69 @@ class HeliPlot(object):
 			stationName.append(tmpname[1].strip())	
 			self.stationName = stationName	
 			os.chdir(self.resppath)
+			resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
+			self.resp.append(resp)	
 			print "stream[%d]" % i
 			print "number of traces = " + str(len(self.stream[i]))
 			print "datetimeUTC = " + str(self.datetimeUTC)
 			print "resfilename = " + str(resfilename)
-			resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
-
-			# -------------------------------------------------------------------
-			# Simulation/filter for deconvolution
-			# NOTE: Filter will be chosen by user, this includes filter 
-			# coefficients and frequency ranges. Currently all stations run the
-			# same filter design (i.e. bandpass), this will change depending on 
-			# the network and data extracted from each station, the higher freq
-			# signals will need to use a notch or high freq filter
-			# -------------------------------------------------------------------
-			self.stream[i].merge(method=0)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
-			if self.filtertype == "bandpass":
-				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
-				#self.stream[i].filter(self.filtertype, freqmin=self.bplowerfreq, freqmax=self.bpupperfreq, corners=2)	# bandpass filter design
-			elif self.filtertype == "lowpass":
-				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
-				self.stream[i].filter(self.filtertype, freq=lpfreq, corners=1)	# lowpass filter design
-			elif self.filtertype == "highpass":
-				self.stream[i].simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=resp, taper='True')	# deconvolution
-				self.stream[i].filter(self.filtertype, freq=hpfreq, corners=1)	# highpass filter design
 			print "\n"
+
+	def freqDeconvFilter(self, stream, response):
+		# Make sure stream and response names match	
+		tmpstr = re.split("\\.", stream[0].getId())
+		namestr = tmpstr[1].strip()
+		nameres = response['filename'].strip() 
+		#self.filteredstream.append(namestr)	
+		#self.filteredresponse.append(response['filename'])	
+		try:	
+			print "Filtering stream " + namestr + " and response " + nameres + "\n" 
+			if self.filtertype == "bandpass":
+				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
+				#stream.filter(self.filtertype, freqmin=self.bplowerfreq, freqmax=self.bpupperfreq, corners=2)	# bandpass filter design
+			elif self.filtertype == "lowpass":
+				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
+				stream.filter(self.filtertype, freq=lpfreq, corners=1)	# lowpass filter design
+			elif self.filtertype == "highpass":
+				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
+				stream.filter(self.filtertype, freq=hpfreq, corners=1)	# highpass filter design	
+			
+			self.filteredstream.append(stream)	
+			return 0 
+		except Exception as e:
+			return "*****Exception found = " + str(e)
+	
+	def parallelfreqDeconvFilter(self):
+		# -------------------------------------------------------------------
+		# Simulation/filter for deconvolution
+		# NOTE: Filter will be chosen by user, this includes filter 
+		# coefficients and frequency ranges. Currently all stations run the
+		# same filter design (i.e. bandpass), this will change depending on 
+		# the network and data extracted from each station, the higher freq
+		# signals will need to use a notch or high freq filter
+		# -------------------------------------------------------------------
+		# Pre-filter bandpass corner frequencies eliminate end frequency
+		# spikes (i.e. H(t) = F(t)/G(t), G(t) != 0)
+		# -------------------------------------------------------------------
+		for i in range(self.streamlen):	
+			self.stream[i].merge(method=0)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
+		manager = Manager()	
+		self.filteredstream = manager.list([])
+		self.filteredresponse = manager.list([])	
+
+		# Deconvolution/Prefilter	
+		# Initialize multiprocessing pools
+		cpu_count = multiprocessing.cpu_count()
+		PROCESSES = cpu_count
+		pool = multiprocessing.Pool(PROCESSES)
+		try:
+			pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
+			pool.close()
+			pool.join()
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt, terminating workers"
+			pool.terminate()
+			pool.join()
 
 	def magnifyPlot(self):
 		# --------------------------------------------------------
@@ -163,20 +213,20 @@ class HeliPlot(object):
 		# NOTE: Traces are now merged into a single stream so we
 		#	must account for this in the magnification
 		# --------------------------------------------------------
-		streamlen = len(self.stream)
+		streamlen = len(self.filteredstream)
 		for i in range(streamlen):
 			index = str(i)
-			tracelen = self.stream[i].count()
+			tracelen = self.filteredstream[i].count()
 			name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
 			#print "name = " + str(name)
 			#print self.stream[i]
 			if tracelen == 1:
-				tr = self.stream[i][0]
+				tr = self.filteredstream[i][0]
 				datalen = tr.count()
 				#print "datalen = " + str(datalen)
 				j = 0
 				for j in range(datalen):	# mult data points in trace
-					self.stream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
+					self.filteredstream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
 				#print "\n"
 		
 		# --------------------------------------------------------
@@ -190,14 +240,14 @@ class HeliPlot(object):
 		#title=self.stream[1][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+str(self.resx)+"x"+str(self.resy)+", "+str(self.pix)	
 		#events={"min_magnitude": 6.5}	
 		for i in range(streamlen):
-			self.stream[i].merge(method=0)
-			self.stream[i].plot(type='dayplot', interval=60, 
+			self.filteredstream[i].merge(method=0)
+			self.filteredstream[i].plot(type='dayplot', interval=60, 
 					vertical_scaling_range=self.vertrange,
 					right_vertical_lables=False, number_of_ticks=7, 
 					one_tick_per_line=True, color=['k'],
 					show_y_UTC_label=False, size=(self.resx,self.resy), 
 					dpi=self.pix, title_size=8,
-					title=self.stream[i][0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
+					title=self.filteredstream[i][0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
 					outfile=self.stationName[i]+"."+self.imgformat)
 
 	def __init__(self, **kwargs):
@@ -217,7 +267,6 @@ class HeliPlot(object):
 					newline = re.split('#', line)
 					if "Station Data" in newline[1]:
 						STFLAG = True
-			
 			elif line[0] != '#':
 				if line != '\n':
 					newline = re.split('#', line)	
@@ -305,13 +354,30 @@ class HeliPlot(object):
 			self.hpfreq = float(data['hpfreq'])
 		elif self.filtertype == "notch":
 			self.notch = float(data['notch'])
+		
+		# Get current date/time and subtract a day
+		# this will always pull the current time on the system
+		time = datetime.now() - timedelta(days=1)
+		timestring = str(time)
+		timestring = re.split("\\.", timestring)
+		tmp = timestring[0]
+		timedate = tmp.replace("-", "/")
+		datetimeQuery = timedate.strip()
+		#datetimeQuery = "2013/08/17 00:00:00"
+		self.datetimeQuery = datetimeQuery
+		print "\ndatetimeQuery = " + str(datetimeQuery) + "\n"
+		tmpUTC = datetimeQuery
+		tmpUTC = tmpUTC.replace("/", "")
+		tmpUTC = tmpUTC.replace(" ", "_")
+		self.datetimeUTC = UTCDateTime(str(tmpUTC))
 
 # -----------------------------
 # Main program (can be removed)
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	heli.cwbQuery()		# query stations
-	heli.pullTraces()	# analyze trace data and remove empty traces	
-	heli.freqDeconvFilter()	# deconvole/filter trace data	
-	heli.magnifyPlot()	# magnify trace data and plot
+	#heli.parallelcwbQuery()	# query stations
+	heli.pullTraces()		# analyze trace data and remove empty traces	
+	heli.freqResponse()		# calculate frequency response of signal	
+	heli.parallelfreqDeconvFilter()	# deconvole/filter trace data	
+	heli.magnifyPlot()		# magnify trace data and plot
