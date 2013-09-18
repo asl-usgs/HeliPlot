@@ -18,10 +18,6 @@ def unwrap_self_cwbQuery(args, **kwargs):
 def unwrap_self_freqDeconvFilter(args, **kwargs):
 	return HeliPlot.freqDeconvFilter(*args, **kwargs)
 
-# Unpack self from arguments and call method magnify()
-def unwrap_self_magnify(args, **kwargs):
-	return HeliPlot.magnify(*args, **kwargs)
-
 # Unpack self from args and call method plotVelocity()
 def unwrap_self_plotVelocity(args, **kwargs):
 	return HeliPlot.plotVelocity(*args, **kwargs)
@@ -106,9 +102,6 @@ class HeliPlot(object):
 		for i in range(streamlen):
 			index = str(i)
 			tracelen = stream[i].count()
-			#print "number of traces = " + str(tracelen)
-			#print "len(trace[i]) = " + str(len(trace[index]))
-			#print strsel
 			if tracelen == 1:
 				if trace[index].stats['sampling_rate'] == 0.0:
 					stream[i].remove(trace[index])
@@ -217,47 +210,21 @@ class HeliPlot(object):
 			pool.terminate()
 			pool.join()
 
-	def magnify(self, data):
-		# --------------------------------------------------------
-		# Magnification of trace data 
-		# NOTE: Traces are now merged into a single stream so we
-		#	must account for this in the magnification
-		# --------------------------------------------------------
-		data = data * self.magnification
-		return data
-
-	def parallelMagnify(self, streams):
+	def magnifyData(self, streams):
+		# ----------------------------------------
+		# Magnify streams by specified 
+		# magnification factor 
+		# ----------------------------------------
 		streamlen = len(streams)
 		for i in range(streamlen):
 			tracelen = streams[i].count()	
-			#name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
-			#print "name = " + str(name)
-			#print self.stream[i]
 			if tracelen == 1:
 				tr = streams[i][0]	# single trace within stream
 				data = tr.data		# data samples from single trace	
 				datalen = len(data)	# number of data points within single trace
-				
-				# Initialize multiprocessing pools for magnification	
-				cpu_count = multiprocessing.cpu_count()
-				PROCESSES = cpu_count
-				pool = multiprocessing.Pool(PROCESSES)
-				try:
-					print "Magnifying stream..." 
-					print "Stream ID = " + str(tr.getId()) + "\n"	
-					magdata = pool.map(unwrap_self_magnify, zip([self]*datalen, data))	# thread trace data 
-					np_magdata = np.array(magdata)	# convert list to numpy array to store in trace.data
-					streams[i][0].data = np_magdata	# replace trace data with magnified trace data
-				except KeyboardInterrupt:
-					print "Caught KeyboardInterrupt, terminating workers"
-					pool.terminate()
-					pool.join()
+				print "Magnifying stream " + str(tr.getId()) + "\n"	
+				streams[i][0].data = streams[i][0].data * self.magnification
 		
-		pool.close()
-		pool.join()
-		pool.terminate()
-		pool.join()
-					
 		return streams	
 	
 	def plotVelocity(self, stream, stationName):
@@ -265,8 +232,7 @@ class HeliPlot(object):
 		# Plot velocity data	
 		# --------------------------------------------------------
 		stream.merge(method=0)
-		print "stream[0].getId() = " + str(stream[0].getId())
-		print "stationName = " + str(stationName) + "\n"
+		print "Plotting velocity data for stationName = " + str(stationName) + "\n"
 		stream.plot(type='dayplot', interval=60,
 			vertical_scaling_range=self.vertrange,
 			right_vertical_lables=False, number_of_ticks=7,
@@ -287,7 +253,6 @@ class HeliPlot(object):
 			os.remove(f)	# remove temp jpg files from OutputFiles dir
 		#events={"min_magnitude": 6.5}	
 		
-		print "Plotting velocity data...\n"	
 		# Initialize multiprocessing pools for plotting
 		cpu_count = multiprocessing.cpu_count()
 		PROCESSES = cpu_count
@@ -433,5 +398,5 @@ if __name__ == '__main__':
 	heli.pullTraces()						# analyze trace data and remove empty traces	
 	heli.freqResponse()						# calculate frequency response of signal	
 	filtered_streams = heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
-	magnified_streams = heli.parallelMagnify(filtered_streams)	# magnify trace data 
+	magnified_streams = heli.magnifyData(filtered_streams)		# magnify trace data 
 	heli.parallelPlotVelocity(magnified_streams)			# plot filtered/magnified data	
