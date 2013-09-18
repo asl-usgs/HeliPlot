@@ -243,21 +243,23 @@ class HeliPlot(object):
 				PROCESSES = cpu_count
 				pool = multiprocessing.Pool(PROCESSES)
 				try:
-					print "Magnifying stream: " + str(tr.getId()) + "\n"
+					print "Magnifying stream..." 
+					print "Stream ID = " + str(tr.getId()) + "\n"	
 					magdata = pool.map(unwrap_self_magnify, zip([self]*datalen, data))	# thread trace data 
 					np_magdata = np.array(magdata)	# convert list to numpy array to store in trace.data
 					streams[i][0].data = np_magdata	# replace trace data with magnified trace data
-					pool.close()
-					pool.join()
-					pool.terminate()
-					pool.join()
-					
-					return streams	
 				except KeyboardInterrupt:
 					print "Caught KeyboardInterrupt, terminating workers"
 					pool.terminate()
 					pool.join()
 		
+		pool.close()
+		pool.join()
+		pool.terminate()
+		pool.join()
+					
+		return streams	
+	
 	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
 		# Plot velocity data	
