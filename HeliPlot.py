@@ -2,7 +2,9 @@
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
-from multiprocessing import Manager
+from multiprocessing import Manager, Value
+import numpy as np
+import functools
 import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
@@ -15,6 +17,14 @@ def unwrap_self_cwbQuery(args, **kwargs):
 # Unpack self from arguments and call method freqDeconvFilter() 
 def unwrap_self_freqDeconvFilter(args, **kwargs):
 	return HeliPlot.freqDeconvFilter(*args, **kwargs)
+
+# Unpack self from arguments and call method magnify()
+def unwrap_self_magnify(args, **kwargs):
+	return HeliPlot.magnify(*args, **kwargs)
+
+# Unpack self from args and call method plotVelocity()
+def unwrap_self_plotVelocity(args, **kwargs):
+	return HeliPlot.plotVelocity(*args, **kwargs)
 
 # ---------------------------------------------------------
 # HeliPlot() uses CWBQuery to query station streams,
@@ -52,6 +62,8 @@ class HeliPlot(object):
 		try:
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))	
 			pool.close()
+			pool.join()
+			pool.terminate()
 			pool.join()
 		except KeyboardInterrupt:
 			print "Caught KeyboardINterrupt, terminating workers"
@@ -156,8 +168,6 @@ class HeliPlot(object):
 		tmpstr = re.split("\\.", stream[0].getId())
 		namestr = tmpstr[1].strip()
 		nameres = response['filename'].strip() 
-		#self.filteredstream.append(namestr)	
-		#self.filteredresponse.append(response['filename'])	
 		try:	
 			print "Filtering stream " + namestr + " and response " + nameres + "\n" 
 			if self.filtertype == "bandpass":
@@ -170,8 +180,7 @@ class HeliPlot(object):
 				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
 				stream.filter(self.filtertype, freq=hpfreq, corners=1)	# highpass filter design	
 			
-			self.filteredstream.append(stream)	
-			return 0 
+			return stream 
 		except Exception as e:
 			return "*****Exception found = " + str(e)
 	
@@ -189,9 +198,6 @@ class HeliPlot(object):
 		# -------------------------------------------------------------------
 		for i in range(self.streamlen):	
 			self.stream[i].merge(method=0)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
-		manager = Manager()	
-		self.filteredstream = manager.list([])
-		self.filteredresponse = manager.list([])	
 
 		# Deconvolution/Prefilter	
 		# Initialize multiprocessing pools
@@ -199,56 +205,101 @@ class HeliPlot(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
-			pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
+			flt_streams = pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
 			pool.close()
 			pool.join()
+			pool.terminate()
+			pool.join()
+			
+			return flt_streams	
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt, terminating workers"
 			pool.terminate()
 			pool.join()
 
-	def magnifyPlot(self):
+	def magnify(self, data):
 		# --------------------------------------------------------
-		# Magnification (will also support user input)
+		# Magnification of trace data 
 		# NOTE: Traces are now merged into a single stream so we
 		#	must account for this in the magnification
 		# --------------------------------------------------------
-		streamlen = len(self.filteredstream)
+		data = data * self.magnification
+		return data
+
+	def parallelMagnify(self, streams):
+		streamlen = len(streams)
 		for i in range(streamlen):
-			index = str(i)
-			tracelen = self.filteredstream[i].count()
-			name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
+			tracelen = streams[i].count()	
+			#name = self.networkID[i]+"."+self.stationID[i]+"."+self.locationID[i]+"."+self.channelID[i]	# name
 			#print "name = " + str(name)
 			#print self.stream[i]
 			if tracelen == 1:
-				tr = self.filteredstream[i][0]
-				datalen = tr.count()
-				#print "datalen = " + str(datalen)
-				j = 0
-				for j in range(datalen):	# mult data points in trace
-					self.filteredstream[i][0].data[j] = tr.data[j] * self.magnification	# mag cal
-				#print "\n"
+				tr = streams[i][0]	# single trace within stream
+				data = tr.data		# data samples from single trace	
+				datalen = len(data)	# number of data points within single trace
+				
+				# Initialize multiprocessing pools for magnification	
+				cpu_count = multiprocessing.cpu_count()
+				PROCESSES = cpu_count
+				pool = multiprocessing.Pool(PROCESSES)
+				try:
+					print "Magnifying stream: " + str(tr.getId()) + "\n"
+					magdata = pool.map(unwrap_self_magnify, zip([self]*datalen, data))	# thread trace data 
+					np_magdata = np.array(magdata)	# convert list to numpy array to store in trace.data
+					streams[i][0].data = np_magdata	# replace trace data with magnified trace data
+					pool.close()
+					pool.join()
+					pool.terminate()
+					pool.join()
+					
+					return streams	
+				except KeyboardInterrupt:
+					print "Caught KeyboardInterrupt, terminating workers"
+					pool.terminate()
+					pool.join()
 		
+	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
-		# Plot displacement data	
+		# Plot velocity data	
 		# --------------------------------------------------------
+		stream.merge(method=0)
+		print "stream[0].getId() = " + str(stream[0].getId())
+		print "stationName = " + str(stationName) + "\n"
+		stream.plot(type='dayplot', interval=60,
+			vertical_scaling_range=self.vertrange,
+			right_vertical_lables=False, number_of_ticks=7,
+			one_tick_per_line=True, color=['k'],
+			show_y_UTC_label=False, size=(self.resx,self.resy),
+			dpi=self.pix, title_size=8,
+			title=stream[0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
+			outfile=stationName+"."+self.imgformat)
+	
+	def parallelPlotVelocity(self, streams):	
+		# --------------------------------------------------------
+		# Plot velocity data	
+		# --------------------------------------------------------
+		streamlen = len(streams)	
 		os.chdir(self.plotspath)
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
 			os.remove(f)	# remove temp jpg files from OutputFiles dir
-		#outfile=self.stationName[i]+".jpg"
-		#title=self.stream[1][0].getId()+"  "+"Last Updated: "+str(self.datetimeQuery)+"  "+str(self.resx)+"x"+str(self.resy)+", "+str(self.pix)	
 		#events={"min_magnitude": 6.5}	
-		for i in range(streamlen):
-			self.filteredstream[i].merge(method=0)
-			self.filteredstream[i].plot(type='dayplot', interval=60, 
-					vertical_scaling_range=self.vertrange,
-					right_vertical_lables=False, number_of_ticks=7, 
-					one_tick_per_line=True, color=['k'],
-					show_y_UTC_label=False, size=(self.resx,self.resy), 
-					dpi=self.pix, title_size=8,
-					title=self.filteredstream[i][0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
-					outfile=self.stationName[i]+"."+self.imgformat)
+		
+		print "Plotting velocity data...\n"	
+		# Initialize multiprocessing pools for plotting
+		cpu_count = multiprocessing.cpu_count()
+		PROCESSES = cpu_count
+		pool = multiprocessing.Pool(PROCESSES)
+		try:
+			pool.map(unwrap_self_plotVelocity, zip([self]*streamlen, streams, self.stationName))	# thread plots
+			pool.close()
+			pool.join()
+			pool.terminate()
+			pool.join()
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt, terminating workers"
+			pool.terminate()
+			pool.join()
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -370,14 +421,15 @@ class HeliPlot(object):
 		tmpUTC = tmpUTC.replace("/", "")
 		tmpUTC = tmpUTC.replace(" ", "_")
 		self.datetimeUTC = UTCDateTime(str(tmpUTC))
-
+	
 # -----------------------------
 # Main program (can be removed)
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	#heli.parallelcwbQuery()	# query stations
-	heli.pullTraces()		# analyze trace data and remove empty traces	
-	heli.freqResponse()		# calculate frequency response of signal	
-	heli.parallelfreqDeconvFilter()	# deconvole/filter trace data	
-	heli.magnifyPlot()		# magnify trace data and plot
+	heli.parallelcwbQuery()						# query stations
+	heli.pullTraces()						# analyze trace data and remove empty traces	
+	heli.freqResponse()						# calculate frequency response of signal	
+	filtered_streams = heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
+	magnified_streams = heli.parallelMagnify(filtered_streams)	# magnify trace data 
+	heli.parallelPlotVelocity(magnified_streams)			# plot filtered/magnified data	
