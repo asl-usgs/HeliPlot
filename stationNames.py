@@ -5,6 +5,15 @@ import time
 import subprocess
 import signal
 
+# ---------------------------------------------------------
+# Script uses the getmetadata.py script to parse dataless
+# seedfiles for each network. The station names and 
+# locations will be extracted and then written to 
+# stationNames.txt. This text file will be parsed for the
+# networks not contained in the rmnetwork list found in
+# prestation.cfg
+# ---------------------------------------------------------
+
 # Indirect caller for instance methods and multiprocessing
 def call_it(instance, name, args=(), kwargs=None):
 	if kwargs is None:
@@ -71,6 +80,7 @@ class stationNames(object):
 			print self.getmetadata + " -sl " + self.datalesspath + network	
 			proc = subprocess.Popen([self.getmetadata + " -sl " + self.datalesspath + network], stdout=subprocess.PIPE, shell=True)
 			(out, err) = proc.communicate()
+			
 			return out
 		except Exception as e:
 			return "*****Exception found = " + str(e)

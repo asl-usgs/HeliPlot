@@ -1,6 +1,11 @@
 #!/usr/bin/python
 import os, re, string
 
+# ----------------------------------------------------------
+# Script reads in stationNames.txt file and prestation.cfg 
+# and creates a station.cfg file for HeliPlot.py 
+# ----------------------------------------------------------
+
 class readStations(object):
 	def __init__(self):
 		# -------------------------------------------------------
@@ -108,19 +113,16 @@ class readStations(object):
 		# Print station info/location to config file
 		# --------------------------------------------------	
 		print "writePathsStations()"	
-		cwd = os.getcwd()	# get current directory
-		seedpath = cwd + "/SeedFiles/"
-		plotspath = cwd + "/OutputPlots/"
 		cfgout = self.cfgout	
-		if not os.path.exists(seedpath):
-			print seedpath + " DNE, creating path..."
-			os.makedirs(seedpath)
-		if not os.path.exists(plotspath):
-			print plotspath + " DNE, creating path..."
-			os.makedirs(plotspath)
+		if not os.path.exists(self.seedpath):
+			print self.seedpath + " DNE, creating path..."
+			os.makedirs(self.seedpath)
+		if not os.path.exists(self.plotspath):
+			print self.plotspath + " DNE, creating path..."
+			os.makedirs(self.plotspath)
 		cfgout.write("# Directory paths for seedfiles, plots, responses, etc.\n")
-		cfgout.write(seedpath + "\t" + self.seedpathcmt + "\n")
-		cfgout.write(plotspath + "\t" + self.plotspathcmt + "\n")
+		cfgout.write(self.seedpath + "\t" + self.seedpathcmt + "\n")
+		cfgout.write(self.plotspath + "\t" + self.plotspathcmt + "\n")
 		cfgout.write(self.cwbquery + "\t" + self.cwbquerycmt + "\n")
 		cfgout.write(self.resppath + "\t" + self.resppathcmt + "\n\n")
 
@@ -196,6 +198,10 @@ class readStations(object):
 						self.cwbquery = newline[1].strip()
 					elif "resppath" in newline[0]:
 						self.resppath = newline[1].strip()
+					elif "seedpath" in newline[0]:
+						self.seedpath = newline[1].strip()
+					elif "plotspath" in newline[0]:
+						self.plotspath = newline[1].strip()
 
 		# Comments associated with each variable
 		self.stationcmt = "# Station Data"
@@ -218,10 +224,10 @@ class readStations(object):
 		self.pixcmt = "# pixels per inch"
 		self.imgformatcmt = "# image format (*.jpg, *.png, etc.)"	
 		self.vertrangecmt = "# vertical scaling range"
-		self.seedpathcmt = "# seed path"
-		self.plotspathcmt = "# plots path"
 		self.cwbquerycmt = "# cwbquery jar file"
 		self.resppathcmt = "# responses path"
+		self.seedpathcmt = "# seed path"
+		self.plotspathcmt = "# plots path"
 		self.cfgcmt = "# Config file is populated by readStations.py\n# station info will be read from station list\n# execution times will depend on cronjob or an\n# external time file that lists times for each station\n# ---------------------------------------------------\n# These values should not be user input when running a cronjob\n# f1 = bandpass lowerbound\n# f3 = bandpass upperbound\n# mag = magnification factor\n# -------------------------------------------------\n"
 
 # -----------------------------

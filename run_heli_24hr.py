@@ -2,14 +2,35 @@
 import os, sys, re, string, subprocess
 from datetime import datetime, timedelta
 
-HELIPLOTS="/home/agonzales/Documents/HeliPlot/OutputPlots/"
-STATIONNAMES="/home/agonzales/Documents/HeliPlot/stationNames.txt"
-GIFCONVERT="/home/agonzales/Documents/HeliPlot/gifconvert.sh"
-NODATA="/home/agonzales/Downloads/nodata.gif"
-HELIHTML="/home/agonzales/Documents/HeliPlot/HeliHTML/"
+# ------------------------------------------------
+# Script takes all output heli plots from 
+# HeliPlot.py and converts them to gif images
+# then inserts them into HTML files for each 
+# operable station
+# ------------------------------------------------
 
 class run_heli_24hr(object):
 	def __init__(self):
+		# ----------------------------------------------
+		# Open and read prestation.cfg for heliplots,
+		# stationnames, etc.
+		# ----------------------------------------------
+		finconfig = open('prestation.cfg', 'r')
+		for line in finconfig:
+			if(line[0] != '#'):
+				if line != '\n':
+					newline = re.split('=', line)
+					if "plotspath" in newline[0]:
+						self.plotspath = str(newline[1].strip())
+					elif "stationnames" in newline[0]:
+						self.stationnames = str(newline[1].strip())
+					elif "gifconvert" in newline[0]:
+						self.gifconvert = str(newline[1].strip())
+					elif "nodata" in newline[0]:
+						self.nodata = str(newline[1].strip())
+					elif "helihtml" in newline[0]:
+						self.helihtml = str(newline[1].strip())
+		
 		# ----------------------------------------------
 		# Open and read list of stations/locations
 		# ----------------------------------------------
@@ -18,8 +39,8 @@ class run_heli_24hr(object):
 		self.locations = {}		# dict for station locations (arranged by station)
 		self.gifstations = []		# list of stations from OutputPlots	
 		self.heliplots = {}		# dict of heliplots for each station	
-		self.missingstations = []	# missing stations from HeliPlots output	
-		fin = open('stationNames.txt', 'r')
+		self.missingstations = []	# missing stations from HeliPlots output		
+		fin = open(self.stationnames, 'r')
 		count = 0
 		for line in fin:
 			count = 0
@@ -42,7 +63,7 @@ class run_heli_24hr(object):
 		# Converts .jpg files produced by HeliPlot to .gif files
 		# to be used for the LISS HTML. 	
 		# --------------------------------------------------------
-		filelist = sorted(os.listdir(HELIPLOTS))
+		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)	
 		JPGFLAG = False	
 		if filelen != 0:
@@ -50,8 +71,8 @@ class run_heli_24hr(object):
 				if ".jpg" in filelist[i]:
 					JPGFLAG = True	
 					try:
-						os.chdir(HELIPLOTS)	
-						process = subprocess.Popen([GIFCONVERT], stderr=subprocess.PIPE, shell=True)
+						os.chdir(self.plotspath)	
+						process = subprocess.Popen([self.gifconvert], stderr=subprocess.PIPE, shell=True)
 						(out, err) = process.communicate()
 					except Exception as e:
 						print "*****Exception found = " + str(e)
@@ -66,12 +87,12 @@ class run_heli_24hr(object):
 		# ---------------------------------------
 		# Read in .gif images from HeliPlots	
 		# ---------------------------------------
-		filelist = sorted(os.listdir(HELIPLOTS))
+		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)
 		if filelen != 0:
 			for i in range(filelen):
 				tmp = re.split('\\.', filelist[i])
-				self.gifstations.append(tmp[1].strip())	# only get locations for stations that exist for HeliPlots
+				self.gifstations.append(tmp[1].strip())		# only get locations for stations that exist for HeliPlots
 				self.heliplots[tmp[1].strip()] = filelist[i]	# corresponding HeliPlot for each station
 
 		for i in range(len(self.stations)):
@@ -90,7 +111,7 @@ class run_heli_24hr(object):
 		# --------------------------------------------------
 	
 		# Get MST/GMT date/times from system 
-		os.chdir(HELIHTML)	
+		os.chdir(self.helihtml)	
 		try:	
 				
 			procMST = subprocess.Popen(["date '+%a %m/%d/%y %H:%M %Z'"], stdout=subprocess.PIPE, shell=True)	
@@ -114,7 +135,7 @@ class run_heli_24hr(object):
 			htmlname = station + "_24hr.html"
 			if station in self.missingstations:
 				NODATAFLG = True	
-				image = NODATA
+				image = self.nodata
 			else:
 				NODATAFLG = False	
 				image = self.heliplots[station]	
@@ -131,7 +152,7 @@ class run_heli_24hr(object):
 			if NODATAFLG:
 				html.write("\t\t<CENTER><img src=" + '"' + image + '"' + " width=" + '"' + width + '"' + " height=" + '"' + height + '"' + "></CENTER>\n") 
 			else:	
-				html.write("\t\t<CENTER><img src=" + '"' + HELIPLOTS + image + '"' + " width=" + '"' + width + '"' + " height=" + '"' + height + '"' + "></CENTER>\n") 
+				html.write("\t\t<CENTER><img src=" + '"' + self.plotspath + image + '"' + " width=" + '"' + width + '"' + " height=" + '"' + height + '"' + "></CENTER>\n") 
 			html.write("\t\t<p align=" + '"' + align + '"' + ">\n")
 			html.write("\t</body>\n")
 			html.write("</html>")

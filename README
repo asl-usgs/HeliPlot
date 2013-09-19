@@ -1,14 +1,29 @@
-Project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). There are 3 main config files that are parsed:
+Project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). Two main bottlenecks (cwbQuery and deconvolution/filtering within HeliPlot.py) have been fixed by introducing multiprocessing methods, processing time has been reduced from approx. 15min to approx. 6min (it should be noted that these times can be reduced further depending on the server running the programs). The project structure is laid out as follows (all programs and config files contain necessary documentation): 
 
-prestation.cfg    (gives all data pertaining to station information (i.e. filter, pathnames, etc.))
-stationNames.txt  (gives station names from getMetadata.py and prestation.cfg)
-station.cfg       (contains all pre-data from prestation.cfg and stationNames.txt)
+	-------------------
+	Config files
+	-------------------
+	prestation.cfg    (contains all necessary configurations and documentation needed for all programs: locationIDs, filter designs, path names, etc.)
+	stationNames.txt  (contains all station names and locations outputted from stationNames.py)
+	station.cfg       (contains all station configurations from prestation.cfg and stationNames.txt)
 
-There are two main bottlenecks within the code that increase processing time significantly. The first pertains to cwbQuery which queries data for each operable station (time increases as number of stations increase), the second deals with the deconvolution/prefiltering of the data (time increaeses as the number of traces per stream increase, this takes the most time when running HeliPlot.py). Times on both of these processes can be significantly reduced by applying multiprocessing pools.
-
-The project layout is as follows:
-
-stationNames.py   (uses getMetadata.py from mseedpythontools to pull metadata from operable stations, input: prestation.cfg, output: stationNames.txt)
-readStations.py   (reads station info from stationNames.txt and prestation.cfg, output: station.cfg)
-HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, output: *.jpg)
-run_heli_24hr.py  (pulls *.jpg files from HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
+	------------------------------------------------
+	Python scripts (run in their respective order)
+	------------------------------------------------
+	stationNames.py   (calls getMetadata.py from mseedpythontools to pull metadata from operable stations) 
+		Inputs: 	prestation.cfg
+		Outputs:	stationNames.txt
+	readStations.py   (reads station configurations and info from stationNames.txt and prestation.cfg and creates a config file to be used by HeliPlot.py)
+		Inputs:		stationNames.txt
+				prestation.cfg
+		Outputs:	station.cfg
+	HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, if station contains no data we will use nodata.gif as the output)
+		Inputs:		station.cfg
+		Outputs:	OutputPlots/*.jpg plots for each station
+	run_heli_24hr.py  (pulls *.jpg files from the output of HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
+		Inputs:		prestation.cfg
+				stationNames.txt	
+				OutputPlots/*.jpg	(plots for each station)	
+				gifconvert.sh		(shell script: converts all *.jpg images to *.gif images)
+		Outputs:	
+				HeliHTML/*.html		(html code for each station)	

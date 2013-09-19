@@ -10,6 +10,14 @@ import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
 
+# -----------------------------------------------------------------
+# Script reads in configurations from station.cfg and queries
+# stations, station data is then deconvolved, filtered, 
+# magnified and plotted. Outputs will be station data images in
+# a jpg format. When script is finished processing, run
+# run_heli_24hr.py to generate HTML files for each station
+# -----------------------------------------------------------------
+
 # Unpack self from arguments and call method cwbQuery()
 def unwrap_self_cwbQuery(args, **kwargs):
 	return HeliPlot.cwbQuery(*args, **kwargs)
@@ -56,7 +64,7 @@ class HeliPlot(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
-			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))	
+			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))		
 			pool.close()
 			pool.join()
 			pool.terminate()
