@@ -40,7 +40,7 @@ class HeliPlot(object):
 		# Pull specific station seed file using CWBQuery
 		# ------------------------------------------------
 		try:
-			proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t ms -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
+			proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
 			(out, err) = proc.communicate()
 			print out	
 		except Exception as e:
@@ -91,6 +91,7 @@ class HeliPlot(object):
 			except Exception as e:
 				print "*****Exception found = " + str(e)
 			i = i - 1
+		
 		streamlen = len(stream)	# number of streams (i.e. stream files)
 		self.streamlen = streamlen	
 		trace = {}	# dict of traces for each stream
@@ -168,19 +169,52 @@ class HeliPlot(object):
 		# Make sure stream and response names match	
 		tmpstr = re.split("\\.", stream[0].getId())
 		namestr = tmpstr[1].strip()
+		nameloc = tmpstr[2].strip()	
+		namechan = tmpstr[3].strip()	
 		nameres = response['filename'].strip() 
+		if namechan == "EHZ":
+			filtertype = self.EHZfiltertype
+			c1 = self.EHZprefiltf1
+			c2 = self.EHZprefiltf2
+			c3 = self.EHZprefiltf3
+			c4 = self.EHZprefiltf4
+			hpfreq = self.EHZhpfreq
+			notchfreq = self.EHZnotchfreq	# notch filter will be implemented later
+		elif namechan == "BHZ":
+			filtertype = self.BHZfiltertype
+			c1 = self.BHZprefiltf1
+			c2 = self.BHZprefiltf2
+			c3 = self.BHZprefiltf3
+			c4 = self.BHZprefiltf4
+			bplowerfreq = self.BHZbplowerfreq	
+			bpupperfreq = self.BHZbpupperfreq	
+		elif namechan == "LHZ":
+			filtertype = self.LHZfiltertype
+			c1 = self.LHZprefiltf1
+			c2 = self.LHZprefiltf2
+			c3 = self.LHZprefiltf3
+			c4 = self.LHZprefiltf4
+			bplowerfreq = self.LHZbplowerfreq
+			bpupperfreq = self.LHZbpupperfreq	
+		elif namechan == "VHZ":
+			filtertype = self.VHZfiltertype
+			c1 = self.VHZprefiltf1
+			c2 = self.VHZprefiltf2
+			c3 = self.VHZprefiltf3
+			c4 = self.VHZprefiltf4
+			lpfreq = self.VHZlpfreq
 		try:	
 			print "Filtering stream " + namestr + " and response " + nameres + "\n" 
-			if self.filtertype == "bandpass":
-				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
-				#stream.filter(self.filtertype, freqmin=self.bplowerfreq, freqmax=self.bpupperfreq, corners=2)	# bandpass filter design
-			elif self.filtertype == "lowpass":
-				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
-				stream.filter(self.filtertype, freq=lpfreq, corners=1)	# lowpass filter design
-			elif self.filtertype == "highpass":
-				stream.simulate(paz_remove=None, pre_filt=(self.c1, self.c2, self.c3, self.c4), seedresp=response, taper='True')	# deconvolution
-				stream.filter(self.filtertype, freq=hpfreq, corners=1)	# highpass filter design	
-			
+			if filtertype == "bandpass":
+				stream.simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=response, taper='True')	# deconvolution
+				#stream.filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=2)	# bandpass filter design
+			elif filtertype == "lowpass":
+				stream.simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=response, taper='True')	# deconvolution
+				stream.filter(filtertype, freq=lpfreq, corners=1)	# lowpass filter design
+			elif filtertype == "highpass":
+				stream.simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=response, taper='True')	# deconvolution
+				stream.filter(filtertype, freq=hpfreq, corners=1)	# highpass filter design	
+
 			return stream 
 		except Exception as e:
 			return "*****Exception found = " + str(e)
@@ -198,7 +232,7 @@ class HeliPlot(object):
 		# spikes (i.e. H(t) = F(t)/G(t), G(t) != 0)
 		# -------------------------------------------------------------------
 		for i in range(self.streamlen):	
-			self.stream[i].merge(method=0)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
+			self.stream[i].merge(method=1, fill_value='interpolate', interpolation_samples=100)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
 
 		# Deconvolution/Prefilter	
 		# Initialize multiprocessing pools
@@ -230,25 +264,29 @@ class HeliPlot(object):
 				tr = streams[i][0]	# single trace within stream
 				data = tr.data		# data samples from single trace	
 				datalen = len(data)	# number of data points within single trace
-				print "Magnifying stream " + str(tr.getId()) + "\n"	
-				streams[i][0].data = streams[i][0].data * self.magnification
-		
+				tmpId = re.split("\\.", tr.getId())
+				stationId = tmpId[1].strip()
+				print "Magnifying stream " + str(tr.getId()) 
+				if stationId in self.magnificationexc:	
+					magnification = self.magnificationexc[stationId]	
+					print "magnification = " + str(magnification) + "\n"
+				#streams[i][0].data = streams[i][0].data * self.magnification
+	
 		return streams	
 	
 	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
 		# Plot velocity data	
 		# --------------------------------------------------------
-		stream.merge(method=0)
-		print "Plotting velocity data for stationName = " + str(stationName) + "\n"
+		#stream.merge(method=1, fill_value='interpolate', interpolation_samples=100)	# for gapped/overlapped data run a linear interpolation with 100 samples
+		print "Plotting velocity data for station " + str(stationName) + "\n"
 		stream.plot(type='dayplot', interval=60,
 			vertical_scaling_range=self.vertrange,
 			right_vertical_lables=False, number_of_ticks=7,
 			one_tick_per_line=True, color=['k'],
 			show_y_UTC_label=False, size=(self.resx,self.resy),
-			dpi=self.pix, title_size=8,
-			title=stream[0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec",
-			outfile=stationName+"."+self.imgformat)
+			dpi=self.pix, title_size=7,
+			title=stream[0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(self.filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+"  "+"Magnification = "+str(self.magnification), outfile=stationName+"."+self.imgformat)
 	
 	def parallelPlotVelocity(self, streams):	
 		# --------------------------------------------------------
@@ -299,53 +337,89 @@ class HeliPlot(object):
 					if STFLAG:
 						data['station'].append(line.strip())
 					elif "duration" in newline[1]:
-						data['duration'] = newline[0].strip()
+						self.duration = float(newline[0].strip())
 					elif "ipaddress" in newline[1]:
-						data['ipaddress'] = newline[0].strip()
+						self.ipaddress = str(newline[0].strip())
 					elif "httpport" in newline[1]:
-						data['httpport'] = newline[0].strip()
-					elif "filter" in newline[1]:
-						data['filtertype'] = newline[0].strip()
-					elif "bplower" in newline[1]:
-						data['bplowerfreq'] = newline[0].strip()
-					elif "bpupper" in newline[1]:
-						data['bpupperfreq'] = newline[0].strip()
-					elif "lp" in newline[1]:
-						data['lpfreq'] = newline[0].strip()
-					elif "hp" in newline[1]:
-						data['hpfreq'] = newline[0].strip()
-					elif "notch" in newline[1]:
-						data['notch'] = newline[0].strip()
-					elif "magnification" in newline[1]:
-						data['magnification'] = newline[0].strip()
+						self.httpport = int(newline[0].strip())
+					elif "magnification default" in newline[1]:
+						self.magnification_default = float(newline[0].strip())
 					elif "xres" in newline[1]:
-						data['resx'] = newline[0].strip()
+						self.resx = int(newline[0].strip())
 					elif "yres" in newline[1]:
-						data['resy'] = newline[0].strip()
+						self.resy = int(newline[0].strip())
 					elif "pixels" in newline[1]:
-						data['pix'] = newline[0].strip()
+						self.pix = int(newline[0].strip())
 					elif "image format" in newline[1]:
-						data['imgformat'] = newline[0].strip()
+						self.imgformat = str(newline[0].strip())
 					elif "vertical" in newline[1]:
-						data['vertrange'] = newline[0].strip()
-					elif "c1" in newline[1]:
-						data['c1'] = newline[0].strip()
-					elif "c2" in newline[1]:
-						data['c2'] = newline[0].strip()
-					elif "c3" in newline[1]:
-						data['c3'] = newline[0].strip()
-					elif "c4" in newline[1]:
-						data['c4'] = newline[0].strip()
+						self.vertrange = float(newline[0].strip())
 					elif "seed" in newline[1]:
-						data['seedpath'] = newline[0].strip()
+						self.seedpath = str(newline[0].strip())
 					elif "plots" in newline[1]:
-						data['plotspath'] = newline[0].strip()
+						self.plotspath = str(newline[0].strip())
 					elif "cwbquery" in newline[1]:
-						data['cwbquery'] = newline[0].strip()
+						self.cwbquery = str(newline[0].strip())
 					elif "responses" in newline[1]:
-						data['resppath'] = newline[0].strip()
-					
-		# Store data in variables
+						self.resppath = str(newline[0].strip())
+					elif "EHZ filter" in newline[1]:
+						self.EHZfiltertype = str(newline[0].strip())
+					elif "EHZ prefilt f1" in newline[1]:
+						self.EHZprefiltf1 = float(newline[0].strip())
+					elif "EHZ prefilt f2" in newline[1]:
+						self.EHZprefiltf2 = float(newline[0].strip())
+					elif "EHZ prefilt f3" in newline[1]:
+						self.EHZprefiltf3 = float(newline[0].strip())
+					elif "EHZ prefilt f4" in newline[1]:
+						self.EHZprefiltf4 = float(newline[0].strip())
+					elif "EHZ highpass" in newline[1]:
+						self.EHZhpfreq = float(newline[0].strip())
+					elif "EHZ notch" in newline[1]:
+						self.EHZnotchfreq = float(newline[0].strip())
+					elif "BHZ filter" in newline[1]:
+						self.BHZfiltertype = str(newline[0].strip())
+					elif "BHZ prefilt f1" in newline[1]:
+						self.BHZprefiltf1 = float(newline[0].strip())
+					elif "BHZ prefilt f2" in newline[1]:
+						self.BHZprefiltf2 = float(newline[0].strip())
+					elif "BHZ prefilt f3" in newline[1]:
+						self.BHZprefiltf3 = float(newline[0].strip())
+					elif "BHZ prefilt f4" in newline[1]:
+						self.BHZprefiltf4 = float(newline[0].strip())
+					elif "BHZ bplower" in newline[1]:
+						self.BHZbplowerfreq = float(newline[0].strip())
+					elif "BHZ bpupper" in newline[1]:
+						self.BHZbpupperfreq = float(newline[0].strip())
+					elif "LHZ filter" in newline[1]:
+						self.LHZfiltertype = str(newline[0].strip())
+					elif "LHZ prefilt f1" in newline[1]:
+						self.LHZprefiltf1 = float(newline[0].strip())
+					elif "LHZ prefilt f2" in newline[1]:
+						self.LHZprefiltf2 = float(newline[0].strip())
+					elif "LHZ prefilt f3" in newline[1]:
+						self.LHZprefiltf3 = float(newline[0].strip())
+					elif "LHZ prefilt f4" in newline[1]:
+						self.LHZprefiltf4 = float(newline[0].strip())
+					elif "LHZ bplower" in newline[1]:
+						self.LHZbplowerfreq = float(newline[0].strip())
+					elif "LHZ bpupper" in newline[1]:
+						self.LHZbpupperfreq = float(newline[0].strip())
+					elif "VHZ filter" in newline[1]:
+						self.VHZfiltertype = str(newline[0].strip())
+					elif "VHZ prefilt f1" in newline[1]:
+						self.VHZprefiltf1 = float(newline[0].strip())
+					elif "VHZ prefilt f2" in newline[1]:
+						self.VHZprefiltf2 = float(newline[0].strip())
+					elif "VHZ prefilt f3" in newline[1]:
+						self.VHZprefiltf3 = float(newline[0].strip())
+					elif "VHZ prefilt f4" in newline[1]:
+						self.VHZprefiltf4 = float(newline[0].strip())
+					elif "VHZ lowpass" in newline[1]:
+						self.VHZlpfreq = float(newline[0].strip())	
+					elif "magnification exceptions" in newline[1]:
+						self.magnificationexc = newline[0].strip()
+
+		# Store station info/locations in variables
 		self.stationdata = data['station']
 		self.stationinfo = []
 		self.stationlocation = []
@@ -353,37 +427,18 @@ class HeliPlot(object):
 			tmpstation = re.split('\t', s)
 			self.stationinfo.append(tmpstation[0].strip())
 			self.stationlocation.append(tmpstation[1].strip())
-		self.duration = float(data['duration'])
-		self.ipaddress = str(data['ipaddress'])
-		self.httpport = int(data['httpport'])
-		self.filtertype = str(data['filtertype'])
-		self.magnification = float(data['magnification'])
-		self.resx = int(data['resx'])
-		self.resy = int(data['resy'])
-		self.pix = int(data['pix'])
-		self.imgformat = str(data['imgformat'])	
-		self.vertrange = float(data['vertrange'])
-		self.c1 = float(data['c1'])
-		self.c2 = float(data['c2'])
-		self.c3 = float(data['c3'])
-		self.c4 = float(data['c4'])
-		self.seedpath = str(data['seedpath'])
-		self.plotspath = str(data['plotspath'])
-		self.cwbquery = str(data['cwbquery'])
-		self.resppath = str(data['resppath'])
-		if self.filtertype == "bandpass":
-			self.bplowerfreq = float(data['bplowerfreq'])
-			self.bpupperfreq = float(data['bpupperfreq'])
-		elif self.filtertype == "lowpass":
-			self.lpfreq = float(data['lpfreq'])
-		elif self.filtertype == "highpass":
-			self.hpfreq = float(data['hpfreq'])
-		elif self.filtertype == "notch":
-			self.notch = float(data['notch'])
-		
+	
+		# Split/store magnification exception list
+		tmpmag = re.split(',', self.magnificationexc)
+		self.magnificationexc = {}
+		for i in range(len(tmpmag)):
+			tmpexc = re.split(':', tmpmag[i])
+			self.magnificationexc[tmpexc[0].strip()] = float(tmpexc[1].strip())
+		print self.magnificationexc
+
 		# Get current date/time and subtract a day
 		# this will always pull the current time on the system
-		time = datetime.now() - timedelta(days=1)
+		time = datetime.utcnow() - timedelta(days=1)
 		timestring = str(time)
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
@@ -391,20 +446,26 @@ class HeliPlot(object):
 		datetimeQuery = timedate.strip()
 		#datetimeQuery = "2013/08/17 00:00:00"
 		self.datetimeQuery = datetimeQuery
-		print "\ndatetimeQuery = " + str(datetimeQuery) + "\n"
+		tmpquery = re.split(' ', self.datetimeQuery)
+		tmpdate = tmp[0].strip()
+		tmptime = tmp[1].strip()
+		print "\ndatetimeQuery = " + str(self.datetimeQuery) 
 		tmpUTC = datetimeQuery
 		tmpUTC = tmpUTC.replace("/", "")
 		tmpUTC = tmpUTC.replace(" ", "_")
 		self.datetimeUTC = UTCDateTime(str(tmpUTC))
-	
+		print "datetimeUTC = " + str(self.datetimeUTC) + "\n"
+
 # -----------------------------
 # Main program (can be removed)
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	heli.parallelcwbQuery()						# query stations
+	#heli.parallelcwbQuery()						# query stations
 	heli.pullTraces()						# analyze trace data and remove empty traces	
 	heli.freqResponse()						# calculate frequency response of signal	
 	filtered_streams = heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
 	magnified_streams = heli.magnifyData(filtered_streams)		# magnify trace data 
+	'''	
 	heli.parallelPlotVelocity(magnified_streams)			# plot filtered/magnified data	
+	'''	

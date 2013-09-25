@@ -3,24 +3,29 @@ Project replaces the LISS heliplot service. Currently all LISS heliplots are fro
 	-------------------
 	Config files
 	-------------------
-	prestation.cfg    (contains all necessary configurations and documentation needed for all programs: locationIDs, filter designs, path names, etc.)
-	stationNames.txt  (contains all station names and locations outputted from stationNames.py)
-	station.cfg       (contains all station configurations from prestation.cfg and stationNames.txt)
+	* prestation.cfg    (contains all necessary configurations and documentation needed for all programs: locationIDs, filter designs, path names, etc.)
+	
+	* stationNames.txt  (contains all station names and locations outputted from stationNames.py)
+	
+	* station.cfg       (contains all station configurations from prestation.cfg and stationNames.txt)
 
 	------------------------------------------------
 	Python scripts (run in their respective order)
 	------------------------------------------------
-	stationNames.py   (calls getMetadata.py from mseedpythontools to pull metadata from operable stations) 
+	* stationNames.py   (calls getMetadata.py from mseedpythontools to pull metadata from operable stations) 
 		Inputs: 	prestation.cfg
 		Outputs:	stationNames.txt
-	readStations.py   (reads station configurations and info from stationNames.txt and prestation.cfg and creates a config file to be used by HeliPlot.py)
+	
+	* readStations.py   (reads station configurations and info from stationNames.txt and prestation.cfg and creates a config file to be used by HeliPlot.py)
 		Inputs:		stationNames.txt
 				prestation.cfg
 		Outputs:	station.cfg
-	HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, if station contains no data we will use nodata.gif as the output)
+	
+	* HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, if station contains no data we will use nodata.gif as the output)
 		Inputs:		station.cfg
 		Outputs:	OutputPlots/*.jpg plots for each station
-	run_heli_24hr.py  (pulls *.jpg files from the output of HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
+	
+	* run_heli_24hr.py  (pulls *.jpg files from the output of HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
 		Inputs:		prestation.cfg
 				stationNames.txt	
 				OutputPlots/*.jpg	(plots for each station)	
