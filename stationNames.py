@@ -14,6 +14,9 @@ import signal
 # prestation.cfg
 # ---------------------------------------------------------
 
+# Raises KeyboardInterrupts for multiprocessing methods
+class KeyboardInterruptError(Exception): pass	
+
 # Indirect caller for instance methods and multiprocessing
 def call_it(instance, name, args=(), kwargs=None):
 	if kwargs is None:
@@ -82,6 +85,9 @@ class stationNames(object):
 			(out, err) = proc.communicate()
 			
 			return out
+		except KeyboardInterrupt:
+			print "KeyboardInterrupt: terminate getMetadata() workers"
+			raise KeyboardInterruptError()
 		except Exception as e:
 			return "*****Exception found = " + str(e)
 	
@@ -95,17 +101,26 @@ class stationNames(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
 		try:	
+			print "Start Pool apply_async getMetadata()"	
 			async_results = [pool.apply_async(call_it, args=(self, 'getMetadata', (network,)), callback=self.log_result) for network in self.getnetwork]
-			pool.close()
+
+			pool.close()	
 			pool.join()
 
 			stationout = open('stationNames.txt', 'w')
 			for result in self.result_list:	
 				stationout.write(result)
+			
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt, terminating workers"
+			print "Caught KeyboardInterrupt: terminating getMetadata() workers"
 			pool.terminate()
 			pool.join()
+			print "Pool getMetadata() is terminated"
+		except Exception, e:
+			print "Got exception: %r, terminating the Pool" % (e,)
+			pool.terminate()
+			pool.join()
+			print "Pool getMetadata() is terminated"
 
 if __name__ == '__main__':
 	stations = stationNames()
