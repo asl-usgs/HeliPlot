@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
