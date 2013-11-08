@@ -1,7 +1,6 @@
-
-/* ---------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------- */
 Project replaces the LISS heliplot service. The two main bottlenecks (cwbQuery and deconvolution/filtering within HeliPlot.py) have been fixed by introducing multiprocessing methods, processing time has been reduced from approx. 15min to approx. 6min (it should be noted that these times can be reduced further depending on the server running the programs).  
-/* ---------------------------------------------------------------------------------
+/* --------------------------------------------------------------------------------- */ 
 
 /* ----------------------------------------------------------------- */
 /* General procedure from start to finish (special cases in 'NOTE')  */
