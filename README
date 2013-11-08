@@ -1,34 +1,62 @@
-Project replaces the LISS heliplot service. Currently all LISS heliplots are from LH data, a notch filter will be introduced for the higher frequency signals (i.e. 100, 40, 20 Hz). Two main bottlenecks (cwbQuery and deconvolution/filtering within HeliPlot.py) have been fixed by introducing multiprocessing methods, processing time has been reduced from approx. 15min to approx. 6min (it should be noted that these times can be reduced further depending on the server running the programs). The project structure is laid out as follows (all programs and config files contain necessary documentation): 
+/* ----------------------------------------------------------------------------------------
+Project replaces the LISS heliplot service. The two main bottlenecks (cwbQuery and deconvolution/filtering within HeliPlot.py) have been fixed by introducing multiprocessing methods, processing time has been reduced from approx. 15min to approx. 6min (it should be noted that these times can be reduced further depending on the server running the programs).  
+/* ----------------------------------------------------------------------------------------
 
-	-------------------
-	Config files
-	-------------------
-	* prestation.cfg    (contains all necessary configurations and documentation needed for all programs: locationIDs, filter designs, path names, etc.)
-	
-	* stationNames.txt  (contains all station names and locations outputted from stationNames.py)
-	
-	* station.cfg       (contains all station configurations from prestation.cfg and stationNames.txt)
+/* ----------------------------------------------------------------- */
+/* General procedure from start to finish (special cases in 'NOTE')  */
+/* ----------------------------------------------------------------- */
+/* NOTE: For special circumstances involving only a few user defined */ 
+/*	 stations (i.e. user wants data only from ANMO and BJT). The */ 
+/*	 steps are as follows:	     				     */
+/*		1.) Skip steps (1-3)				     */
+/*		2.) Edit station.cfg				     */
+/*			* Remove undesired stations		     */
+/*			* Edit filter designs			     */
+/*			* Edit exception lists			     */
+/*		3.) Run steps (4-5) for the heliplots/html	     */
+/* ----------------------------------------------------------------- */
 
-	------------------------------------------------
-	Python scripts (run in their respective order)
-	------------------------------------------------
-	* stationNames.py   (calls getMetadata.py from mseedpythontools to pull metadata from operable stations) 
-		Inputs: 	prestation.cfg
-		Outputs:	stationNames.txt
-	
-	* readStations.py   (reads station configurations and info from stationNames.txt and prestation.cfg and creates a config file to be used by HeliPlot.py)
-		Inputs:		stationNames.txt
-				prestation.cfg
-		Outputs:	station.cfg
-	
-	* HeliPlot.py       (takes info from station.cfg and creates heli plots for each station, if station contains no data we will use nodata.gif as the output)
-		Inputs:		station.cfg
-		Outputs:	OutputPlots/*.jpg plots for each station
-	
-	* run_heli_24hr.py  (pulls *.jpg files from the output of HeliPlot.py and creates *.html files for each image, input: gifconvert.sh, output: *.html)
-		Inputs:		prestation.cfg
-				stationNames.txt	
-				OutputPlots/*.jpg	(plots for each station)	
-				gifconvert.sh		(shell script: converts all *.jpg images to *.gif images)
-		Outputs:	
-				HeliHTML/*.html		(html code for each station)	
+1.) Edit prestation.cfg 
+	a.) Set default variables (i.e. magnification, resolution, vertical range, etc.)	
+	b.) Set system paths (NOTE: some paths are dependent on the system)
+		-> getmetadata: executable contained in HeliPlot/ dir
+		-> datalesspath: dataless seed path unique to server (/APPS/metadata/SEED/)
+		-> cwbquery: executable, needs to be installed on server
+		-> resppath: frequency response path unique to server (/APPS/metadata/RESPS/)
+		-> seedpath: temp seed path in HeliPlot/ dir (created upon launch)
+		-> plotspath: temp heliplots path in HeliPlot/ dir (created upon launch) 
+		-> gifconvert: executable contained in HeliPlot/ dir (converts jpg->gif)
+		-> nodata: gif image contained in HeliPlot/ dir
+		-> helihtmlpath: temp html path in HeliPlot/ dir (created upon launch)
+	c.) Set filter designs (unique to channelID)
+	d.) Set exception lists
+		-> rmnetwork: remove specified networks
+		-> channelexc: change channelIDs for specified station(s) (default is LHZ)
+		-> locationexc: change locationIDs for specified station(s) (default is 00)
+		-> magnificationexc: change mag for specified station(s) (default is 3000.0)	
+
+2.) Run stationNames.py (./stationNames.py) 
+	a.) Descrip: 	Calls getMetadata.py to pull metdata from operable stations
+	b.) Inputs: 	prestation.cfg
+	c.) Outputs:	stationNames.txt (station names to be used in readStations.py)
+
+3.) Run readStations.py (./readStations.py)
+	a.) Descrip:	Reads station config/names and creates a main config file for HeliPlot.py
+	b.) Inputs:	prestation.cfg
+			stationNames.txt
+	c.) Outputs:	station.cfg (contains station data from prestation.cfg and stationNames)
+
+4.) Run HeliPlot.py (./HeliPlot.py) 
+	a.) Descrip:	Reads station.cfg and creates heliplots for each station, if
+			station contains no data we will use nodata.gif as output
+	b.) Inputs:	station.cfg
+	c.) Outputs:	OutputPlots/*.jpg heliplots for each station
+
+5.) Run run_heli_24hr.py (./run_heli_24hr.py) 
+	a.) Descrip:	Pulls *.jpg files from OutputPlots/ and creates *.html files for 
+			each image
+	b.) Inputs:	prestation.cfg	(needed for paths)
+			stationNames.txt
+			OutputPlots/*.jpg (plots for each station)
+			gifconvert.sh (shell script: converts all .jpg images to .gif)
+	c.) Outputs:	HeliHTML/*.html	(html files for each station)	

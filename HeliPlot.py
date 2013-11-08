@@ -376,7 +376,7 @@ class HeliPlot(object):
 		os.chdir(self.plotspath)
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
-			os.remove(f)	# remove temp jpg files from OutputFiles dir
+			os.remove(f)	# remove temp jpg files from OutputPlots dir
 		#events={"min_magnitude": 6.5}	
 	
 		# Initialize multiprocessing pools for plotting
