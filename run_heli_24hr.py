@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, sys, re, string, subprocess
+import os, sys, re, glob, string, subprocess
 from datetime import datetime, timedelta
 
 # ------------------------------------------------
@@ -30,7 +30,10 @@ class run_heli_24hr(object):
 						self.nodata = str(newline[1].strip())
 					elif "helihtml" in newline[0]:
 						self.helihtml = str(newline[1].strip())
-		
+	
+		print "\nOutput plots path: " + str(self.plotspath) 
+		print "Heli plots html path: " + str(self.helihtml)
+
 		# ----------------------------------------------
 		# Open and read list of stations/locations
 		# ----------------------------------------------
@@ -63,6 +66,7 @@ class run_heli_24hr(object):
 		# Converts .jpg files produced by HeliPlot to .gif files
 		# to be used for the LISS HTML. 	
 		# --------------------------------------------------------
+		print "\nConverting images from .jpg to .gif..."	
 		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)	
 		JPGFLAG = False	
@@ -87,6 +91,7 @@ class run_heli_24hr(object):
 		# ---------------------------------------
 		# Read in .gif images from HeliPlots	
 		# ---------------------------------------
+		print "Reading in .gif images from OutputPlots/..."	
 		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)
 		if filelen != 0:
@@ -109,9 +114,12 @@ class run_heli_24hr(object):
 		# locations associated with each of these stations
 		# is contained within the self.locations dict
 		# --------------------------------------------------
-	
+		print "\nCreating html files for each .gif heliplot image..."	
 		# Get MST/GMT date/times from system 
 		os.chdir(self.helihtml)	
+		htmlfiles = glob.glob(self.helihtml+"*")
+		for f in htmlfiles:
+			os.remove(f)	# remove temp html files from HeliHTML dir
 		try:	
 				
 			procMST = subprocess.Popen(["date '+%a %m/%d/%y %H:%M %Z'"], stdout=subprocess.PIPE, shell=True)	
