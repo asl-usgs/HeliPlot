@@ -18,6 +18,17 @@ import signal
 # a jpg format. When script is finished processing, run
 # run_heli_24hr.py to generate HTML files for each station
 # -----------------------------------------------------------------
+# Methods (keyword search):
+#	* parallelcwbQuery()
+#	* cwbQuery()
+#	* pullTraces()
+#	* freqResponse()
+#	* parallelfreqDeconvFilter()
+#	* freqDeconvFilter()
+#	* magnifyData()
+#	* parallelPlotVelocity()
+#	* plotVelocity()
+# -----------------------------------------------------------------
 
 class KeyboardInterruptError(Exception): pass	# raises KeyboardInterrupts for multiprocessing methods
 
