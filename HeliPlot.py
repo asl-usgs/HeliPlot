@@ -10,6 +10,12 @@ import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
+from matplotlib.pyplot import title, figure, savefig
+from matplotlib import pyplot as plt
+'''
+import matplotlib
+matplotlib.use('Agg')
+'''
 
 # -----------------------------------------------------------------
 # Script reads in configurations from station.cfg and queries
@@ -17,6 +23,17 @@ import signal
 # magnified and plotted. Outputs will be station data images in
 # a jpg format. When script is finished processing, run
 # run_heli_24hr.py to generate HTML files for each station
+# -----------------------------------------------------------------
+# Methods (keyword search):
+#	* parallelcwbQuery()
+#	* cwbQuery()
+#	* pullTraces()
+#	* freqResponse()
+#	* parallelfreqDeconvFilter()
+#	* freqDeconvFilter()
+#	* magnifyData()
+#	* parallelPlotVelocity()
+#	* plotVelocity()
 # -----------------------------------------------------------------
 
 class KeyboardInterruptError(Exception): pass	# raises KeyboardInterrupts for multiprocessing methods
@@ -340,7 +357,7 @@ class HeliPlot(object):
 		# Plot velocity data	
 		# --------------------------------------------------------
 		#stream.merge(method=1, fill_value='interpolate', interpolation_samples=100)	# for gapped/overlapped data run a linear interpolation with 100 samples
-		try:	
+		try:
 			print "Plotting velocity data for station " + str(stationName) + "\n"
 			magnification = self.magnification[stream[0].getId()]	# magnification for station[i]
 			tmpstr = re.split("\\.", stream[0].getId())
@@ -353,14 +370,21 @@ class HeliPlot(object):
 				filtertype = self.LHZfiltertype
 			elif namechan == "VHZ":
 				filtertype = self.VHZfiltertype
-			
+	
+			# pass explicit figure instance to set correct title and attributes	
+			dpl = figure(1)	
 			stream.plot(type='dayplot', interval=60,
 				vertical_scaling_range=self.vertrange,
 				right_vertical_lables=False, number_of_ticks=7,
-				one_tick_per_line=True, color=['k'],
+				one_tick_per_line=True, color=['k'], fig = dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
-				dpi=self.pix, title_size=7,
-				title=stream[0].getId()+"  "+"Start Date/Time: "+str(self.datetimeQuery)+"  "+"Filter: "+str(filtertype)+"  "+"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+"  "+"Magnification = "+str(magnification), outfile=stationName+"."+self.imgformat)
+				dpi=self.pix, title_size=-1)
+			title(stream[0].getId()+"  "+"Start Date/Time: "+\
+				str(self.datetimeQuery)+"  "+"Filter: "+\
+				str(filtertype)+"  "+\
+				"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+\
+				"  "+"Magnification = "+str(magnification), fontsize=7)
+			savefig(stationName+"."+self.imgformat)
 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt: terminate plotVelocity() workers"

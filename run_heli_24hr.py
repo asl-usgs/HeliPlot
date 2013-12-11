@@ -91,7 +91,7 @@ class run_heli_24hr(object):
 		# ---------------------------------------
 		# Read in .gif images from HeliPlots	
 		# ---------------------------------------
-		print "Reading in .gif images from OutputPlots/..."	
+		print "Reading in .jpg images from OutputPlots/..."	
 		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)
 		if filelen != 0:
@@ -104,8 +104,8 @@ class run_heli_24hr(object):
 			if not self.stations[i] in self.gifstations:
 				self.missingstations.append(self.stations[i])	# store missing stations
 		print "****Missing station data****"	
-		for s in self.missingstations:
-			print s
+		'''for s in self.missingstations:
+			print s'''
 	
 	def heliHTML(self):
 		# --------------------------------------------------
@@ -114,7 +114,7 @@ class run_heli_24hr(object):
 		# locations associated with each of these stations
 		# is contained within the self.locations dict
 		# --------------------------------------------------
-		print "\nCreating html files for each .gif heliplot image..."	
+		print "\nCreating html files for each .jpg heliplot image..."	
 		# Get MST/GMT date/times from system 
 		os.chdir(self.helihtml)	
 		htmlfiles = glob.glob(self.helihtml+"*")
@@ -167,6 +167,6 @@ class run_heli_24hr(object):
 
 if __name__ == '__main__':
 	heli = run_heli_24hr()
-	heli.gifConvert()	
+	#heli.gifConvert()	
 	heli.readImages()
 	heli.heliHTML()	
