@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 AK BMR Bremner River    
 AK TNA Tin City Broadband    
 AT PMR Palmer, AK, USA    
@@ -165,7 +164,6 @@ IU WVT Waverly, Tennessee, USA
 IU XMAS Kiritimati Island, Republic of Kiribati    
 IU YAK Yakutsk, Russia    
 IU YSS Yuzhno Sakhalinsk, Russia  
-=======
 CU BBGH Gun Hill, Barbados
 CU MTDJ Mount Denham, Jamaica
 CU GTBY Guantanamo Bay, Cuba
@@ -273,7 +271,6 @@ IW PHWY Pilot Hill, Wyoming, USA
 IW FLWY Flagg Ranch, Wyoming, USA
 IW MFID Camas Ranch, Mayfield, ID, USA
 IW LOHW Long Hollow, Wyoming, USA
->>>>>>> 281052e131539c6445c1132d46945afcfe9b22f6
 IW DLMT Dillon, Montana, USA
 IW FLWY Flagg Ranch, Wyoming, USA
 IW FXWY Fox Creek, Wyoming, USA
@@ -298,7 +295,6 @@ NE HNH Hanover, NH, USA
 NE PQI Presque Isle, ME, USA
 NE QUA2 Belchertown, MA, USA
 NE TRY Troy, NY, USA
-<<<<<<< HEAD
 NE VT1 Waterbury, VT, USA
 NE WES Weston Observatory, Weston, MA, USA
 NE WSPT Westport, CT, USA
@@ -316,10 +312,8 @@ US BLA Blacksburg, Virginia, USA
 US BMO Blue Mountains Array (Baker), Oregon, USA    
 US BOZ Bozeman, Montana, USA    
 US BRAL Brewton, Alabama, USA    
-=======
 US PKME Peaks-Kenny State Park, Maine, USA
 US ERPA Erie, Pennsylvania, USA
->>>>>>> 281052e131539c6445c1132d46945afcfe9b22f6
 US BW06 Boulder Array Site 6 (Pinedale Array Site 6), Wyoming, USA
 US CBKS Cedar Bluff, Kansas, USA    
 US CBN Corbin (Fredericksburg Observatory), Virginia, USA    
@@ -331,7 +325,6 @@ US ECSD EROS Data Center, Sioux Falls, South Dakota, USA
 US EGAK Eagle, Central Alaska, Alaska, USA    
 US EGMT Eagleton, Montana, USA    
 US ELK Elko, Nevada, USA
-<<<<<<< HEAD
 US ERPA Erie, Pennsylvania, USA    
 US EYMN Ely, Minnesota, USA    
 US GLMI Grayling, Michigan, USA    
@@ -374,7 +367,6 @@ US WUAZ Wupatki, Arizona, USA
 US WVOR Wild Horse Valley, Oregon, USA    
 UU CCUT Cedar City, UT, USA    
 UU SRU San Rafael Swell, UT, USA  
-=======
 US WVOR Wild Horse Valley, Oregon, USA
 US LTX Lajitas, Texas, USA
 US AHID Auburn Hatchery, Idaho, USA
@@ -384,4 +376,3 @@ US DGMT Dagmar, Montana, USA
 US BOZ Bozeman, Montana, USA
 US KSU1 Kansas State University--Konza Prairie, Kansas, USA
 US MCWV Mont Chateau, West Virginia, USA
->>>>>>> 281052e131539c6445c1132d46945afcfe9b22f6
