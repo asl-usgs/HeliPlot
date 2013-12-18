@@ -10,12 +10,10 @@ import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
-from matplotlib.pyplot import title, figure, savefig
-from matplotlib import pyplot as plt
-'''
 import matplotlib
 matplotlib.use('Agg')
-'''
+from matplotlib import pyplot as plt	# will use title, figure, savefig methods
+#from matplotlib.pyplot import title, figure, savefig
 
 # -----------------------------------------------------------------
 # Script reads in configurations from station.cfg and queries
@@ -385,12 +383,12 @@ class HeliPlot(object):
 				one_tick_per_line=True, color=['k'], fig = dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
-			title(stream[0].getId()+"  "+"Start Date/Time: "+\
+			plt.title(stream[0].getId()+"  "+"Start Date/Time: "+\
 				str(self.datetimeQuery)+"  "+"Filter: "+\
 				str(filtertype)+"  "+\
 				"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+\
 				"  "+"Magnification = "+str(magnification), fontsize=7)
-			savefig(stationName+"."+self.imgformat)
+			plt.savefig(stationName+"."+self.imgformat)
 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt: terminate plotVelocity() workers"
