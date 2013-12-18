@@ -200,6 +200,12 @@ class HeliPlot(object):
 			print "\n"
 
 	def freqDeconvFilter(self, stream, response):
+		# ----------------------------------------	
+		# Filters are designed according to 
+		# channel IDs. Each channel will present
+		# a different sampling rate and thus 
+		# a different filter.	
+		# ----------------------------------------	
 		# Make sure stream and response names match	
 		tmpstr = re.split("\\.", stream[0].getId())
 		namestr = tmpstr[1].strip()
