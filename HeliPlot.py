@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt	# will use title, figure, savefig methods
+
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
@@ -10,12 +15,7 @@ import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
-from matplotlib.pyplot import title, figure, savefig
-from matplotlib import pyplot as plt
-'''
-import matplotlib
-matplotlib.use('Agg')
-'''
+#from matplotlib.pyplot import title, figure, savefig
 
 # -----------------------------------------------------------------
 # Script reads in configurations from station.cfg and queries
@@ -200,6 +200,12 @@ class HeliPlot(object):
 			print "\n"
 
 	def freqDeconvFilter(self, stream, response):
+		# ----------------------------------------	
+		# Filters are designed according to 
+		# channel IDs. Each channel will present
+		# a different sampling rate and thus 
+		# a different filter.	
+		# ----------------------------------------	
 		# Make sure stream and response names match	
 		tmpstr = re.split("\\.", stream[0].getId())
 		namestr = tmpstr[1].strip()
@@ -372,19 +378,19 @@ class HeliPlot(object):
 				filtertype = self.VHZfiltertype
 	
 			# pass explicit figure instance to set correct title and attributes	
-			dpl = figure(1)	
+			dpl = plt.figure()	
 			stream.plot(type='dayplot', interval=60,
 				vertical_scaling_range=self.vertrange,
 				right_vertical_lables=False, number_of_ticks=7,
 				one_tick_per_line=True, color=['k'], fig = dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
-			title(stream[0].getId()+"  "+"Start Date/Time: "+\
+			plt.title(stream[0].getId()+"  "+"Start Date/Time: "+\
 				str(self.datetimeQuery)+"  "+"Filter: "+\
 				str(filtertype)+"  "+\
 				"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+\
 				"  "+"Magnification = "+str(magnification), fontsize=7)
-			savefig(stationName+"."+self.imgformat)
+			plt.savefig(stationName+"."+self.imgformat)
 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt: terminate plotVelocity() workers"
@@ -397,7 +403,7 @@ class HeliPlot(object):
 		# Plot velocity data	
 		# --------------------------------------------------------
 		streamlen = len(streams)	
-		os.chdir(self.plotspath)
+		os.chdir(self.plotspath)	# cd into OutputPlots directory
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
 			os.remove(f)	# remove temp jpg files from OutputPlots dir

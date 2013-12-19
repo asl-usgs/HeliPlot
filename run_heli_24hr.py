@@ -42,7 +42,8 @@ class run_heli_24hr(object):
 		self.locations = {}		# dict for station locations (arranged by station)
 		self.gifstations = []		# list of stations from OutputPlots	
 		self.heliplots = {}		# dict of heliplots for each station	
-		self.missingstations = []	# missing stations from HeliPlots output		
+		self.missingstations = []	# missing stations from HeliPlots output
+
 		fin = open(self.stationnames, 'r')
 		count = 0
 		for line in fin:
@@ -89,9 +90,9 @@ class run_heli_24hr(object):
 	
 	def readImages(self):
 		# ---------------------------------------
-		# Read in .gif images from HeliPlots	
+		# Read in images from HeliPlots	
 		# ---------------------------------------
-		print "Reading in .jpg images from OutputPlots/..."	
+		print "Reading in images from OutputPlots/..."	
 		filelist = sorted(os.listdir(self.plotspath))
 		filelen = len(filelist)
 		if filelen != 0:
@@ -114,7 +115,7 @@ class run_heli_24hr(object):
 		# locations associated with each of these stations
 		# is contained within the self.locations dict
 		# --------------------------------------------------
-		print "\nCreating html files for each .jpg heliplot image..."	
+		print "\nCreating html files for each heliplot image..."	
 		# Get MST/GMT date/times from system 
 		os.chdir(self.helihtml)	
 		htmlfiles = glob.glob(self.helihtml+"*")
