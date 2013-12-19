@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt	# will use title, figure, savefig methods
+
 from obspy.core.utcdatetime import UTCDateTime
 from obspy.core.stream import read
 from obspy.signal.invsim import evalresp
@@ -10,9 +15,6 @@ import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt	# will use title, figure, savefig methods
 #from matplotlib.pyplot import title, figure, savefig
 
 # -----------------------------------------------------------------
@@ -376,7 +378,7 @@ class HeliPlot(object):
 				filtertype = self.VHZfiltertype
 	
 			# pass explicit figure instance to set correct title and attributes	
-			dpl = figure(1)	
+			dpl = plt.figure()	
 			stream.plot(type='dayplot', interval=60,
 				vertical_scaling_range=self.vertrange,
 				right_vertical_lables=False, number_of_ticks=7,
@@ -401,7 +403,7 @@ class HeliPlot(object):
 		# Plot velocity data	
 		# --------------------------------------------------------
 		streamlen = len(streams)	
-		os.chdir(self.plotspath)
+		os.chdir(self.plotspath)	# cd into OutputPlots directory
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
 			os.remove(f)	# remove temp jpg files from OutputPlots dir
