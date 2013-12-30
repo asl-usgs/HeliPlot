@@ -127,10 +127,18 @@ class HeliPlot(object):
 		
 		streamlen = len(stream)	# number of streams (i.e. stream files)
 		self.streamlen = streamlen	
+		print "pullTraces() method"	
+		print "streamlen = " + str(self.streamlen) 
 		trace = {}	# dict of traces for each stream
+		print "Creating trace dictionary based on stream indexing..."
+		print "multiple traces constitute embedded lists within dict."
 		for i in range(streamlen):
 			strsel = stream[i]	# selected stream
-			tracelen = len(strsel)	# number of traces in stream
+			#tracelen = len(strsel)	# number of traces in stream
+			tracelen = strsel.count()	
+			tmp_trace_id = strsel[0].getId()	
+			print "ID = " + str(tmp_trace_id)	
+			print "tracelen = " + str(tracelen)	
 			index = str(i)
 			if tracelen == 1:	# single trace stream
 				trace[index] = strsel[0]	# trace 0 in stream[i]
@@ -141,6 +149,7 @@ class HeliPlot(object):
 
 		# Loop through stream traces, if trace has sample rate = 0.0Hz
 		# => NFFT = 0, then this trace will be removed
+		print "Removing traces with 0.0Hz sampling rate from stream[][] list..."	
 		for i in range(streamlen):
 			index = str(i)
 			tracelen = stream[i].count()
@@ -580,9 +589,11 @@ class HeliPlot(object):
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	heli.parallelcwbQuery()			# query stations
+	#heli.parallelcwbQuery()			# query stations
 	heli.pullTraces()			# analyze trace data and remove empty traces	
+	'''	
 	heli.freqResponse()			# calculate frequency response of signal	
 	heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
 	magnified_streams = heli.magnifyData()	# magnify trace data 
-	heli.parallelPlotVelocity(magnified_streams)			# plot filtered/magnified data	
+	heli.parallelPlotVelocity(magnified_streams)	# plot filtered/magnified data	
+	'''	
