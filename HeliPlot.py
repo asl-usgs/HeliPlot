@@ -138,7 +138,7 @@ class HeliPlot(object):
 			tracelen = strsel.count()	
 			tmp_trace_id = strsel[0].getId()	
 			print "ID = " + str(tmp_trace_id)	
-			print "tracelen = " + str(tracelen)	
+			print "tracelen = " + str(tracelen) + "\n"	
 			index = str(i)
 			if tracelen == 1:	# single trace stream
 				trace[index] = strsel[0]	# trace 0 in stream[i]
