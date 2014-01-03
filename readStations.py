@@ -289,6 +289,7 @@ class readStations(object):
 		for i in range(len(tmpchan)):	# split/store channelexc
 			tmpexc = re.split(':', tmpchan[i])
 			self.channelexc[tmpexc[0].strip()] = tmpexc[1].strip()
+		
 		tmploc = re.split(',', self.locationexc)
 		self.locationexc = {}
 		for i in range(len(tmploc)):	# split/store locationexc

@@ -73,6 +73,7 @@ class HeliPlot(object):
 		# --------------------------------------------------
 		# Initialize all variables needed to run cwbQuery()
 		# --------------------------------------------------
+		print "--------cwbQuery() Pool-------\n"	
 		self.home = os.getcwd()
 		files = glob.glob(self.seedpath+"*")
 		for f in files:
@@ -106,12 +107,14 @@ class HeliPlot(object):
 			pool.join()	
 			sys.exit(0)
 			print "Pool cwbQuery() is terminated"
+		print "-------cwbQuery() Pool Complete------\n"
 
 	def pullTraces(self):
 		# ------------------------------------------------
 		# Open seed files from cwbQuery and pull trace
 		# stats from the data stream
 		# ------------------------------------------------
+		print "------pullTraces() Start-------\n" 
 		os.chdir(self.seedpath)
 		filelist = sorted(os.listdir(self.seedpath), key=os.path.getctime)
 		self.filelist = filelist	
@@ -124,10 +127,9 @@ class HeliPlot(object):
 			except Exception as e:
 				print "*****Exception found = " + str(e)
 			i = i - 1
-		
+
 		streamlen = len(stream)	# number of streams (i.e. stream files)
 		self.streamlen = streamlen	
-		print "pullTraces() method"	
 		print "streamlen = " + str(self.streamlen) 
 		trace = {}	# dict of traces for each stream
 		print "Creating trace dictionary based on stream indexing..."
@@ -137,8 +139,6 @@ class HeliPlot(object):
 			#tracelen = len(strsel)	# number of traces in stream
 			tracelen = strsel.count()	
 			tmp_trace_id = strsel[0].getId()	
-			print "ID = " + str(tmp_trace_id)	
-			print "tracelen = " + str(tracelen) + "\n"	
 			index = str(i)
 			if tracelen == 1:	# single trace stream
 				trace[index] = strsel[0]	# trace 0 in stream[i]
@@ -161,12 +161,15 @@ class HeliPlot(object):
 					if trace[index][j].stats['sampling_rate'] == 0.0:
 						stream[i].remove(trace[index][j])
 		self.stream = stream
+		print "len(self.stream) = " + str(len(self.stream))
+		print "--------pullTraces() Complete------\n"
 
 	def freqResponse(self):
 		# -----------------------------------------------------------
 		# Pull frequency response for station and run a simulation
 		# to deconvolve signal, after deconvolution filter signal
 		# -----------------------------------------------------------
+		print "--------freqResponse() Start--------\n"	
 		networkID = []
 		stationID = []
 		locationID = []
@@ -207,6 +210,7 @@ class HeliPlot(object):
 			print "datetimeUTC = " + str(self.datetimeUTC)
 			print "resfilename = " + str(resfilename)
 			print "\n"
+		print "-------freqResponse() Complete------\n"
 
 	def freqDeconvFilter(self, stream, response):
 		# ----------------------------------------	
@@ -288,12 +292,13 @@ class HeliPlot(object):
 				print "hpfreq = " + str(hpfreq) + "\n"
 				stream.filter(filtertype, freq=hpfreq, corners=1)	# highpass filter design	
 
+			print "Filtered stream = " + str(stream)	
 			return stream 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt: terminate freqDeconvFilter() workers"
 			raise KeyboardInterruptError()
 		except Exception as e:
-			return "*****Exception found = " + str(e)
+			print "*****Exception found = " + str(e)
 	
 	def parallelfreqDeconvFilter(self):
 		# -------------------------------------------------------------------
@@ -307,6 +312,7 @@ class HeliPlot(object):
 		# Pre-filter bandpass corner frequencies eliminate end frequency
 		# spikes (i.e. H(t) = F(t)/G(t), G(t) != 0)
 		# -------------------------------------------------------------------
+		print "------freqDeconvFilter() Pool------\n"	
 		for i in range(self.streamlen):	
 			self.stream[i].merge(method=1, fill_value='interpolate', interpolation_samples=100)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
 
@@ -324,6 +330,12 @@ class HeliPlot(object):
 			pool.terminate()	
 			pool.join()
 			
+			'''
+			print "len(flt_streams) = " + str(len(flt_streams))
+			print "flt_streams = " + str(flt_streams)	
+			print "flt_streams[1] = " + str(flt_streams[1])	
+			print "flt_streams[0].count() = " + str(flt_streams[0].count())	
+			'''	
 			self.flt_streams = flt_streams
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating freqDeconvFilter() workers"
@@ -337,14 +349,18 @@ class HeliPlot(object):
 			pool.join()	
 			sys.exit(0)	
 			print "Pool freqDeconvFilter() is terminated"
+		print "-------freqDeconvFilter() Pool Complete------\n"
 
 	def magnifyData(self):
 		# ----------------------------------------
 		# Magnify streams by specified 
 		# magnification factor 
 		# ----------------------------------------
+		print "-----magnifyData() Start------\n"	
+		print "Filtered streams complete..."	
 		streams = self.flt_streams	
 		streamlen = len(streams)
+		print "Num filtered streams = " + str(streamlen)	
 		self.magnification = {}	# dict containing magnifications for each station	
 		for i in range(streamlen):
 			tracelen = streams[i].count()	
@@ -364,7 +380,8 @@ class HeliPlot(object):
 				print "magnification = " + str(magnification) + "\n"
 				self.magnification[streams[i][0].getId()] = magnification	
 				streams[i][0].data = streams[i][0].data * magnification 
-	
+		
+		print "------magnifyData() Complete------\n"	
 		return streams	
 	
 	def plotVelocity(self, stream, stationName):
@@ -405,12 +422,13 @@ class HeliPlot(object):
 			print "KeyboardInterrupt: terminate plotVelocity() workers"
 			raise KeyboardInterruptError()
 		except Exception as e:
-			return "*****Exception found = " + str(e)
+			print "*****Exception found = " + str(e)
 
 	def parallelPlotVelocity(self, streams):	
 		# --------------------------------------------------------
 		# Plot velocity data	
 		# --------------------------------------------------------
+		print "------plotVelocity() Pool------\n"	
 		streamlen = len(streams)	
 		os.chdir(self.plotspath)	# cd into OutputPlots directory
 		imgfiles = glob.glob(self.plotspath+"*")
@@ -442,6 +460,7 @@ class HeliPlot(object):
 			pool.join()
 			sys.exit(0)
 			print "Pool plotVelocity() is terminated"
+		print "------plotVelocity() Pool Complete------\n"
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -591,9 +610,7 @@ if __name__ == '__main__':
 	heli = HeliPlot()
 	#heli.parallelcwbQuery()			# query stations
 	heli.pullTraces()			# analyze trace data and remove empty traces	
-	'''	
 	heli.freqResponse()			# calculate frequency response of signal	
 	heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
 	magnified_streams = heli.magnifyData()	# magnify trace data 
 	heli.parallelPlotVelocity(magnified_streams)	# plot filtered/magnified data	
-	'''	
