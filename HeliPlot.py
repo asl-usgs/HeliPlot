@@ -60,7 +60,11 @@ class HeliPlot(object):
 		# Pull specific station seed file using CWBQuery
 		# ------------------------------------------------
 		try:
-			proc = subprocess.Popen(["java -jar  " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
+			# -----------------------------------------------------------	
+			# Print CWBQuery() contents	
+			#print "java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'	
+			# -----------------------------------------------------------	
+			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
 			(out, err) = proc.communicate()
 			print out	
 		except KeyboardInterrupt:
@@ -95,6 +99,7 @@ class HeliPlot(object):
 			pool.join()	
 			pool.terminate()	
 			pool.join()	
+			print "-------cwbQuery() Pool Complete------\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating cwbQuery() workers"
 			pool.terminate()
@@ -107,7 +112,6 @@ class HeliPlot(object):
 			pool.join()	
 			sys.exit(0)
 			print "Pool cwbQuery() is terminated"
-		print "-------cwbQuery() Pool Complete------\n"
 
 	def pullTraces(self):
 		# ------------------------------------------------
@@ -127,42 +131,49 @@ class HeliPlot(object):
 			except Exception as e:
 				print "*****Exception found = " + str(e)
 			i = i - 1
+		
+		try:
+			streamlen = len(stream)	# number of streams (i.e. stream files)
+			self.streamlen = streamlen	
+			print "streamlen = " + str(self.streamlen) 
+			trace = {}	# dict of traces for each stream
+			print "Creating trace dictionary based on stream indexing..."
+			print "multiple traces constitute embedded lists within dict."
+			for i in range(streamlen):
+				strsel = stream[i]	# selected stream
+				#tracelen = len(strsel)	# number of traces in stream
+				tracelen = strsel.count()	
+				tmp_trace_id = strsel[0].getId()	
+				index = str(i)
+				if tracelen == 1:	# single trace stream
+					trace[index] = strsel[0]	# trace 0 in stream[i]
+				elif tracelen > 1:	# multiple trace stream
+					trace[index] = []	# list in dict
+					for j in range(tracelen):
+						trace[index].append(strsel[j])
 
-		streamlen = len(stream)	# number of streams (i.e. stream files)
-		self.streamlen = streamlen	
-		print "streamlen = " + str(self.streamlen) 
-		trace = {}	# dict of traces for each stream
-		print "Creating trace dictionary based on stream indexing..."
-		print "multiple traces constitute embedded lists within dict."
-		for i in range(streamlen):
-			strsel = stream[i]	# selected stream
-			#tracelen = len(strsel)	# number of traces in stream
-			tracelen = strsel.count()	
-			tmp_trace_id = strsel[0].getId()	
-			index = str(i)
-			if tracelen == 1:	# single trace stream
-				trace[index] = strsel[0]	# trace 0 in stream[i]
-			elif tracelen > 1:	# multiple trace stream
-				trace[index] = []	# list in dict
-				for j in range(tracelen):
-					trace[index].append(strsel[j])
-
-		# Loop through stream traces, if trace has sample rate = 0.0Hz
-		# => NFFT = 0, then this trace will be removed
-		print "Removing traces with 0.0Hz sampling rate from stream[][] list..."	
-		for i in range(streamlen):
-			index = str(i)
-			tracelen = stream[i].count()
-			if tracelen == 1:
-				if trace[index].stats['sampling_rate'] == 0.0:
-					stream[i].remove(trace[index])
-			elif tracelen > 1:
-				for j in range(tracelen):
-					if trace[index][j].stats['sampling_rate'] == 0.0:
-						stream[i].remove(trace[index][j])
-		self.stream = stream
-		print "len(self.stream) = " + str(len(self.stream))
-		print "--------pullTraces() Complete------\n"
+			# Loop through stream traces, if trace has sample rate = 0.0Hz
+			# => NFFT = 0, then this trace will be removed
+			print "Removing traces with 0.0Hz sampling rate from stream[][] list..."	
+			for i in range(streamlen):
+				index = str(i)
+				tracelen = stream[i].count()
+				if tracelen == 1:
+					if trace[index].stats['sampling_rate'] == 0.0:
+						stream[i].remove(trace[index])
+				elif tracelen > 1:
+					for j in range(tracelen):
+						if trace[index][j].stats['sampling_rate'] == 0.0:
+							stream[i].remove(trace[index][j])
+			self.stream = stream
+			print "len(self.stream) = " + str(len(self.stream))
+			print "--------pullTraces() Complete------\n"
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt: terminating pullTraces() method"
+			sys.exit(0)
+			print "Method pullTraces() is terminated"
+		except Exception as e:
+			print "*****Exception found = " + str(e)
 
 	def freqResponse(self):
 		# -----------------------------------------------------------
@@ -189,28 +200,38 @@ class HeliPlot(object):
 		self.locationID = locationID
 		self.channelID = channelID
 
-		# -------------------------------------------------------------------
-		# Loop through stations and get frequency responses for each stream
-		# -------------------------------------------------------------------
-		stationName = []	# station names for output plots
-		self.resp = []		# station frequency responses for deconvolution	
-		for i in range(self.streamlen):
-			# NOTE: For aslres01 frequency responses are 
-			# contained in /APPS/metadata/RESPS/
-			resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
-			tmpname = re.split('RESP.', resfilename) 	
-			stationName.append(tmpname[1].strip())	
-			self.stationName = stationName	# store station names	
+		try:
+			# -------------------------------------------------------------------
+			# Loop through stations and get frequency responses for each stream
+			# -------------------------------------------------------------------
+			stationName = []	# station names for output plots
+			self.resp = []		# station frequency responses for deconvolution	
+			for i in range(self.streamlen):
+				# NOTE: For aslres01 frequency responses are 
+				# contained in /APPS/metadata/RESPS/
+				# Check for empty location codes, replace "__" with ""	
+				if locationID[i] == "__":
+					locationID[i] = ""
+				resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
+				print "resfilename = " + str(resfilename)
+				tmpname = re.split('RESP.', resfilename) 	
+				stationName.append(tmpname[1].strip())	
+				self.stationName = stationName	# store station names	
 			
-			os.chdir(self.resppath)	# cd into response directory
-			resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
-			self.resp.append(resp)	
-			print "stream[%d]" % i
-			print "number of traces = " + str(len(self.stream[i]))
-			print "datetimeUTC = " + str(self.datetimeUTC)
-			print "resfilename = " + str(resfilename)
-			print "\n"
-		print "-------freqResponse() Complete------\n"
+				os.chdir(self.resppath)	# cd into response directory
+				resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
+				self.resp.append(resp)	
+				print "stream[%d]" % i
+				print "number of traces = " + str(len(self.stream[i]))
+				print "datetimeUTC = " + str(self.datetimeUTC)
+				print "\n"
+			print "-------freqResponse() Complete------\n"
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt: terminating freqResponse() method" 
+			sys.exit(0)
+			print "Method freqResponse() is terminated"
+		except Exception as e:
+			print "*****Exception found = " + str(e)
 
 	def freqDeconvFilter(self, stream, response):
 		# ----------------------------------------	
@@ -337,6 +358,7 @@ class HeliPlot(object):
 			print "flt_streams[0].count() = " + str(flt_streams[0].count())	
 			'''	
 			self.flt_streams = flt_streams
+			print "-------freqDeconvFilter() Pool Complete------\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating freqDeconvFilter() workers"
 			pool.terminate()
@@ -349,7 +371,6 @@ class HeliPlot(object):
 			pool.join()	
 			sys.exit(0)	
 			print "Pool freqDeconvFilter() is terminated"
-		print "-------freqDeconvFilter() Pool Complete------\n"
 
 	def magnifyData(self):
 		# ----------------------------------------
@@ -362,28 +383,36 @@ class HeliPlot(object):
 		streamlen = len(streams)
 		print "Num filtered streams = " + str(streamlen)	
 		self.magnification = {}	# dict containing magnifications for each station	
-		for i in range(streamlen):
-			tracelen = streams[i].count()	
-			if tracelen == 1:
-				tr = streams[i][0]	# single trace within stream
-				data = tr.data		# data samples from single trace	
-				datalen = len(data)	# number of data points within single trace
-				tmpId = re.split("\\.", tr.getId())	# stream ID
-				networkId = tmpId[0].strip()		# network ID	
-				stationId = tmpId[1].strip()		# station ID
-				netstationId = networkId + stationId	# network/station ID	
-				print "Magnifying stream " + str(tr.getId()) 
-				if netstationId in self.magnificationexc:	
-					magnification = self.magnificationexc[netstationId]	
-				else:
-					magnification = self.magnification_default
-				print "magnification = " + str(magnification) + "\n"
-				self.magnification[streams[i][0].getId()] = magnification	
-				streams[i][0].data = streams[i][0].data * magnification 
+		try:	
+			for i in range(streamlen):
+				tracelen = streams[i].count()	
+				if tracelen == 1:
+					tr = streams[i][0]	# single trace within stream
+					data = tr.data		# data samples from single trace
+					datalen = len(data)	# number of data points within single trace
+					tmpId = re.split("\\.", tr.getId())	# stream ID
+					networkId = tmpId[0].strip()		# network ID	
+					stationId = tmpId[1].strip()		# station ID
+					netstationId = networkId + stationId	# network/station
+
+					print "Magnifying stream " + str(tr.getId()) 
+					if netstationId in self.magnificationexc:	
+						magnification = self.magnificationexc[netstationId]
+					else:
+						magnification = self.magnification_default
+					print "magnification = " + str(magnification) + "\n"
+					self.magnification[streams[i][0].getId()] = magnification
+					streams[i][0].data = streams[i][0].data * magnification 
 		
-		print "------magnifyData() Complete------\n"	
-		return streams	
-	
+			print "------magnifyData() Complete------\n"	
+			return streams	
+		except KeyboardInterrupt:
+			print "Caught KeyboardInterrupt: terminating magnifyData() method"
+			sys.exit(0)
+			print "Method magnifyData() is terminated"
+		except Exception as e:
+			print "*****Exception found = " + str(e)
+
 	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
 		# Plot velocity data	
@@ -448,6 +477,7 @@ class HeliPlot(object):
 			pool.join()
 			pool.terminate()
 			pool.join()
+			print "------plotVelocity() Pool Complete------\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating plotVelocity() workers"
 			pool.terminate()
@@ -460,7 +490,6 @@ class HeliPlot(object):
 			pool.join()
 			sys.exit(0)
 			print "Pool plotVelocity() is terminated"
-		print "------plotVelocity() Pool Complete------\n"
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -590,8 +619,8 @@ class HeliPlot(object):
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
 		timedate = tmp.replace("-", "/")
-		datetimeQuery = timedate.strip()
-		#datetimeQuery = "2013/08/17 00:00:00"
+		#datetimeQuery = timedate.strip()
+		datetimeQuery = "2013/09/12 13:30:00"
 		self.datetimeQuery = datetimeQuery
 		tmpquery = re.split(' ', self.datetimeQuery)
 		tmpdate = tmp[0].strip()
@@ -608,7 +637,7 @@ class HeliPlot(object):
 # -----------------------------
 if __name__ == '__main__':
 	heli = HeliPlot()
-	#heli.parallelcwbQuery()			# query stations
+	heli.parallelcwbQuery()			# query stations
 	heli.pullTraces()			# analyze trace data and remove empty traces	
 	heli.freqResponse()			# calculate frequency response of signal	
 	heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
