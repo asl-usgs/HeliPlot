@@ -619,8 +619,8 @@ class HeliPlot(object):
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
 		timedate = tmp.replace("-", "/")
-		#datetimeQuery = timedate.strip()
-		datetimeQuery = "2013/09/12 13:30:00"
+		datetimeQuery = timedate.strip()
+		#datetimeQuery = "2013/09/12 13:30:00"
 		self.datetimeQuery = datetimeQuery
 		tmpquery = re.split(' ', self.datetimeQuery)
 		tmpdate = tmp[0].strip()
