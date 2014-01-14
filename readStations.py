@@ -289,11 +289,22 @@ class readStations(object):
 		for i in range(len(tmpchan)):	# split/store channelexc
 			tmpexc = re.split(':', tmpchan[i])
 			self.channelexc[tmpexc[0].strip()] = tmpexc[1].strip()
+		
 		tmploc = re.split(',', self.locationexc)
+		for i in range(len(tmploc)):
+			if tmploc[i][0] == " ":
+				tmploc[i] = tmploc[i][1:]	
 		self.locationexc = {}
 		for i in range(len(tmploc)):	# split/store locationexc
 			tmpexc = re.split(':', tmploc[i])
-			self.locationexc[tmpexc[0].strip()] = tmpexc[1].strip()
+			if tmpexc[1][0] == " ":
+				tmpexc[1] = tmpexc[1][1:]
+			if tmpexc[1][0] == '"':	# empty location codes will be assigned '--'	
+				tmpexc[1] = "--"	
+			netstatID = tmpexc[0].strip()	
+			locationID = tmpexc[1].strip()	
+			self.locationexc[netstatID] = locationID 
+		
 		'''	
 		tmpmag = re.split(',', self.magnificationexc)	
 		self.magnificationexc = {}
