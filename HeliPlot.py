@@ -92,14 +92,13 @@ class HeliPlot(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES) 
 		try:
-			print "Starting Pool map cwbQuery()"	
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))
 			
 			pool.close()
 			pool.join()	
 			pool.terminate()	
 			pool.join()	
-			print "-------cwbQuery() Pool Complete------\n"
+			print "-------cwbQuery() Pool Complete------\n\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating cwbQuery() workers"
 			pool.terminate()
@@ -154,7 +153,8 @@ class HeliPlot(object):
 
 			# Loop through stream traces, if trace has sample rate = 0.0Hz
 			# => NFFT = 0, then this trace will be removed
-			print "Removing traces with 0.0Hz sampling rate from stream[][] list..."	
+			print "Removing traces with 0.0Hz sampling rate from stream[][] list...\n"
+
 			for i in range(streamlen):
 				index = str(i)
 				tracelen = stream[i].count()
@@ -166,8 +166,7 @@ class HeliPlot(object):
 						if trace[index][j].stats['sampling_rate'] == 0.0:
 							stream[i].remove(trace[index][j])
 			self.stream = stream
-			print "len(self.stream) = " + str(len(self.stream))
-			print "--------pullTraces() Complete------\n"
+			print "--------pullTraces() Complete------\n\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating pullTraces() method"
 			sys.exit(0)
@@ -225,7 +224,7 @@ class HeliPlot(object):
 				print "number of traces = " + str(len(self.stream[i]))
 				print "datetimeUTC = " + str(self.datetimeUTC)
 				print "\n"
-			print "-------freqResponse() Complete------\n"
+			print "-------freqResponse() Complete------\n\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating freqResponse() method" 
 			sys.exit(0)
@@ -248,43 +247,23 @@ class HeliPlot(object):
 		nameres = response['filename'].strip() 
 		if namechan == "EHZ":
 			filtertype = self.EHZfiltertype
-			c1 = self.EHZprefiltf1
-			c2 = self.EHZprefiltf2
-			c3 = self.EHZprefiltf3
-			c4 = self.EHZprefiltf4
 			hpfreq = self.EHZhpfreq
 			notchfreq = self.EHZnotchfreq	# notch filter will be implemented later
 		elif namechan == "BHZ":
 			filtertype = self.BHZfiltertype
-			c1 = self.BHZprefiltf1
-			c2 = self.BHZprefiltf2
-			c3 = self.BHZprefiltf3
-			c4 = self.BHZprefiltf4
 			bplowerfreq = self.BHZbplowerfreq	
 			bpupperfreq = self.BHZbpupperfreq	
 		elif namechan == "LHZ":
 			filtertype = self.LHZfiltertype
-			c1 = self.LHZprefiltf1
-			c2 = self.LHZprefiltf2
-			c3 = self.LHZprefiltf3
-			c4 = self.LHZprefiltf4
 			bplowerfreq = self.LHZbplowerfreq
 			bpupperfreq = self.LHZbpupperfreq	
 		elif namechan == "VHZ":
 			filtertype = self.VHZfiltertype
-			c1 = self.VHZprefiltf1
-			c2 = self.VHZprefiltf2
-			c3 = self.VHZprefiltf3
-			c4 = self.VHZprefiltf4
 			lpfreq = self.VHZlpfreq
 			
 		try:	
 			print "Filter stream " + namestr + " and response " + nameres 
 			print namechan + " filtertype = " + str(filtertype) 
-			print "c1 = " + str(c1)
-			print "c2 = " + str(c2)
-			print "c3 = " + str(c3)
-			print "c4 = " + str(c4) 
 			
 			# Deconvolution (remove sensitivity)
 			sensitivity = "Sensitivity:"	# pull sensitivity from RESP file
@@ -297,23 +276,27 @@ class HeliPlot(object):
 			print "sensitivity = " + str(s) 
 			# divide data by sensitivity	
 			#stream.simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=response, taper='True')	# deconvolution (this will be a flag for the user)
+			
 			stream[0].data = stream[0].data / s	# remove sensitivity gain from stream data
-				
+			# remove DC offset (transient resp) 
+			stream.detrend('demean')	# removes mean in data set	
+			stream.taper(p=0.01)	# tapers beginning/end to remove transient resp
+			
 			if filtertype == "bandpass":
 				print "Filtering stream (bandpass)"
 				print "bp lower freq = " + str(bplowerfreq) 
-				print "bp upper freq = " + str(bpupperfreq) + "\n" 
-				stream.filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=2)	# bandpass filter design
+				print "bp upper freq = " + str(bpupperfreq) 
+				stream.filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=4)	# bandpass filter design
 			elif filtertype == "lowpass":
 				print "Filtering stream (lowpass)"
-				print "lp freq = " + str(lpfreq) + "\n"
+				print "lp freq = " + str(lpfreq) 
 				stream.filter(filtertype, freq=lpfreq, corners=1)	# lowpass filter design
 			elif filtertype == "highpass":
 				print "Filtering stream (highpass)"
-				print "hpfreq = " + str(hpfreq) + "\n"
+				print "hpfreq = " + str(hpfreq) 
 				stream.filter(filtertype, freq=hpfreq, corners=1)	# highpass filter design	
 
-			print "Filtered stream = " + str(stream)	
+			print "Filtered stream = " + str(stream) + "\n"	
 			return stream 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt: terminate freqDeconvFilter() workers"
@@ -343,7 +326,6 @@ class HeliPlot(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
-			print "Starting Pool map freqDeconvFilter()\n"	
 			flt_streams = pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
 			
 			pool.close()
@@ -351,14 +333,8 @@ class HeliPlot(object):
 			pool.terminate()	
 			pool.join()
 			
-			'''
-			print "len(flt_streams) = " + str(len(flt_streams))
-			print "flt_streams = " + str(flt_streams)	
-			print "flt_streams[1] = " + str(flt_streams[1])	
-			print "flt_streams[0].count() = " + str(flt_streams[0].count())	
-			'''	
 			self.flt_streams = flt_streams
-			print "-------freqDeconvFilter() Pool Complete------\n"
+			print "-------freqDeconvFilter() Pool Complete------\n\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating freqDeconvFilter() workers"
 			pool.terminate()
@@ -378,7 +354,6 @@ class HeliPlot(object):
 		# magnification factor 
 		# ----------------------------------------
 		print "-----magnifyData() Start------\n"	
-		print "Filtered streams complete..."	
 		streams = self.flt_streams	
 		streamlen = len(streams)
 		print "Num filtered streams = " + str(streamlen)	
@@ -404,7 +379,7 @@ class HeliPlot(object):
 					self.magnification[streams[i][0].getId()] = magnification
 					streams[i][0].data = streams[i][0].data * magnification 
 		
-			print "------magnifyData() Complete------\n"	
+			print "------magnifyData() Complete------\n\n"	
 			return streams	
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating magnifyData() method"
@@ -470,14 +445,13 @@ class HeliPlot(object):
 		PROCESSES = cpu_count
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
-			print "Starting Pool map plotVelocity()"	
 			pool.map(unwrap_self_plotVelocity, zip([self]*streamlen, streams, self.stationName))	# thread plots
 			
 			pool.close()
 			pool.join()
 			pool.terminate()
 			pool.join()
-			print "------plotVelocity() Pool Complete------\n"
+			print "------plotVelocity() Pool Complete------\n\n"
 		except KeyboardInterrupt:
 			print "Caught KeyboardInterrupt: terminating plotVelocity() workers"
 			pool.terminate()
@@ -541,56 +515,24 @@ class HeliPlot(object):
 						self.resppath = str(newline[0].strip())
 					elif "EHZ filter" in newline[1]:
 						self.EHZfiltertype = str(newline[0].strip())
-					elif "EHZ prefilt f1" in newline[1]:
-						self.EHZprefiltf1 = float(newline[0].strip())
-					elif "EHZ prefilt f2" in newline[1]:
-						self.EHZprefiltf2 = float(newline[0].strip())
-					elif "EHZ prefilt f3" in newline[1]:
-						self.EHZprefiltf3 = float(newline[0].strip())
-					elif "EHZ prefilt f4" in newline[1]:
-						self.EHZprefiltf4 = float(newline[0].strip())
 					elif "EHZ highpass" in newline[1]:
 						self.EHZhpfreq = float(newline[0].strip())
 					elif "EHZ notch" in newline[1]:
 						self.EHZnotchfreq = float(newline[0].strip())
 					elif "BHZ filter" in newline[1]:
 						self.BHZfiltertype = str(newline[0].strip())
-					elif "BHZ prefilt f1" in newline[1]:
-						self.BHZprefiltf1 = float(newline[0].strip())
-					elif "BHZ prefilt f2" in newline[1]:
-						self.BHZprefiltf2 = float(newline[0].strip())
-					elif "BHZ prefilt f3" in newline[1]:
-						self.BHZprefiltf3 = float(newline[0].strip())
-					elif "BHZ prefilt f4" in newline[1]:
-						self.BHZprefiltf4 = float(newline[0].strip())
 					elif "BHZ bplower" in newline[1]:
 						self.BHZbplowerfreq = float(newline[0].strip())
 					elif "BHZ bpupper" in newline[1]:
 						self.BHZbpupperfreq = float(newline[0].strip())
 					elif "LHZ filter" in newline[1]:
 						self.LHZfiltertype = str(newline[0].strip())
-					elif "LHZ prefilt f1" in newline[1]:
-						self.LHZprefiltf1 = float(newline[0].strip())
-					elif "LHZ prefilt f2" in newline[1]:
-						self.LHZprefiltf2 = float(newline[0].strip())
-					elif "LHZ prefilt f3" in newline[1]:
-						self.LHZprefiltf3 = float(newline[0].strip())
-					elif "LHZ prefilt f4" in newline[1]:
-						self.LHZprefiltf4 = float(newline[0].strip())
 					elif "LHZ bplower" in newline[1]:
 						self.LHZbplowerfreq = float(newline[0].strip())
 					elif "LHZ bpupper" in newline[1]:
 						self.LHZbpupperfreq = float(newline[0].strip())
 					elif "VHZ filter" in newline[1]:
 						self.VHZfiltertype = str(newline[0].strip())
-					elif "VHZ prefilt f1" in newline[1]:
-						self.VHZprefiltf1 = float(newline[0].strip())
-					elif "VHZ prefilt f2" in newline[1]:
-						self.VHZprefiltf2 = float(newline[0].strip())
-					elif "VHZ prefilt f3" in newline[1]:
-						self.VHZprefiltf3 = float(newline[0].strip())
-					elif "VHZ prefilt f4" in newline[1]:
-						self.VHZprefiltf4 = float(newline[0].strip())
 					elif "VHZ lowpass" in newline[1]:
 						self.VHZlpfreq = float(newline[0].strip())	
 					elif "magnification exceptions" in newline[1]:
