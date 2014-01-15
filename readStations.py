@@ -125,37 +125,21 @@ class readStations(object):
 		
 		# EHZ Filter Design	
 		cfgout.write(self.EHZfiltertype + "\t" + self.EHZfiltertypecmt + "\n")
-		cfgout.write(self.EHZprefiltf1 + "\t" + self.EHZprefiltf1cmt + "\n")	
-		cfgout.write(self.EHZprefiltf2 + "\t" + self.EHZprefiltf2cmt + "\n")	
-		cfgout.write(self.EHZprefiltf3 + "\t" + self.EHZprefiltf3cmt + "\n")	
-		cfgout.write(self.EHZprefiltf4 + "\t" + self.EHZprefiltf4cmt + "\n")	
 		cfgout.write(self.EHZhpfreq + "\t" + self.EHZhpfreqcmt + "\n")
 		cfgout.write(self.EHZnotchfreq + "\t" + self.EHZnotchfreqcmt + "\n\n")
 		
 		# BHZ Filter Design
 		cfgout.write(self.BHZfiltertype + "\t" + self.BHZfiltertypecmt + "\n")
-		cfgout.write(self.BHZprefiltf1 + "\t" + self.BHZprefiltf1cmt + "\n")
-		cfgout.write(self.BHZprefiltf2 + "\t" + self.BHZprefiltf2cmt + "\n")
-		cfgout.write(self.BHZprefiltf3 + "\t" + self.BHZprefiltf3cmt + "\n")
-		cfgout.write(self.BHZprefiltf4 + "\t" + self.BHZprefiltf4cmt + "\n")
 		cfgout.write(self.BHZbplowerfreq + "\t" + self.BHZbplowerfreqcmt + "\n")
 		cfgout.write(self.BHZbpupperfreq + "\t" + self.BHZbpupperfreqcmt + "\n\n")
 
 		# LHZ Filter Design
 		cfgout.write(self.LHZfiltertype + "\t" + self.LHZfiltertypecmt + "\n")
-		cfgout.write(self.LHZprefiltf1 + "\t" + self.LHZprefiltf1cmt + "\n")
-		cfgout.write(self.LHZprefiltf2 + "\t" + self.LHZprefiltf2cmt + "\n")
-		cfgout.write(self.LHZprefiltf3 + "\t" + self.LHZprefiltf3cmt + "\n")
-		cfgout.write(self.LHZprefiltf4 + "\t" + self.LHZprefiltf4cmt + "\n")
 		cfgout.write(self.LHZbplowerfreq + "\t" + self.LHZbplowerfreqcmt + "\n")
 		cfgout.write(self.LHZbpupperfreq + "\t" + self.LHZbpupperfreqcmt + "\n\n")
 
 		# VHZ Filter Design
 		cfgout.write(self.VHZfiltertype + "\t" + self.VHZfiltertypecmt + "\n")
-		cfgout.write(self.VHZprefiltf1 + "\t" + self.VHZprefiltf1cmt + "\n")	
-		cfgout.write(self.VHZprefiltf2 + "\t" + self.VHZprefiltf2cmt + "\n")	
-		cfgout.write(self.VHZprefiltf3 + "\t" + self.VHZprefiltf3cmt + "\n")	
-		cfgout.write(self.VHZprefiltf4 + "\t" + self.VHZprefiltf4cmt + "\n")	
 		cfgout.write(self.VHZlpfreq + "\t" + self.VHZlpfreqcmt + "\n\n")
 		
 		# Write magnification exception list for specific stations
@@ -224,56 +208,24 @@ class readStations(object):
 						self.helihtmlpath = newline[1].strip()
 					elif "EHZfiltertype" in newline[0]:
 						self.EHZfiltertype = newline[1].strip()
-					elif "EHZprefiltf1" in newline[0]:
-						self.EHZprefiltf1 = newline[1].strip()
-					elif "EHZprefiltf2" in newline[0]:
-						self.EHZprefiltf2 = newline[1].strip()
-					elif "EHZprefiltf3" in newline[0]:
-						self.EHZprefiltf3 = newline[1].strip()
-					elif "EHZprefiltf4" in newline[0]:
-						self.EHZprefiltf4 = newline[1].strip()
 					elif "EHZhpfreq" in newline[0]:
 						self.EHZhpfreq = newline[1].strip()
 					elif "EHZnotchfreq" in newline[0]:
 						self.EHZnotchfreq = newline[1].strip()
 					elif "BHZfiltertype" in newline[0]:
 						self.BHZfiltertype = newline[1].strip()
-					elif "BHZprefiltf1" in newline[0]:
-						self.BHZprefiltf1 = newline[1].strip()
-					elif "BHZprefiltf2" in newline[0]:
-						self.BHZprefiltf2 = newline[1].strip()
-					elif "BHZprefiltf3" in newline[0]:
-						self.BHZprefiltf3 = newline[1].strip()
-					elif "BHZprefiltf4" in newline[0]:
-						self.BHZprefiltf4 = newline[1].strip()
 					elif "BHZbplowerfreq" in newline[0]:
 						self.BHZbplowerfreq = newline[1].strip()
 					elif "BHZbpupperfreq" in newline[0]:
 						self.BHZbpupperfreq = newline[1].strip()
 					elif "LHZfiltertype" in newline[0]:
 						self.LHZfiltertype = newline[1].strip()
-					elif "LHZprefiltf1" in newline[0]:
-						self.LHZprefiltf1 = newline[1].strip()
-					elif "LHZprefiltf2" in newline[0]:
-						self.LHZprefiltf2 = newline[1].strip()
-					elif "LHZprefiltf3" in newline[0]:
-						self.LHZprefiltf3 = newline[1].strip()
-					elif "LHZprefiltf4" in newline[0]:
-						self.LHZprefiltf4 = newline[1].strip()
 					elif "LHZbplowerfreq" in newline[0]:
 						self.LHZbplowerfreq = newline[1].strip()
 					elif "LHZbpupperfreq" in newline[0]:
 						self.LHZbpupperfreq = newline[1].strip()
 					elif "VHZfiltertype" in newline[0]:
 						self.VHZfiltertype = newline[1].strip()
-					elif "VHZprefiltf1" in newline[0]:
-						self.VHZprefiltf1 = newline[1].strip()
-					elif "VHZprefiltf2" in newline[0]:
-						self.VHZprefiltf2 = newline[1].strip()
-					elif "VHZprefiltf3" in newline[0]:
-						self.VHZprefiltf3 = newline[1].strip()
-					elif "VHZprefiltf4" in newline[0]:
-						self.VHZprefiltf4 = newline[1].strip()
 					elif "VHZlpfreq" in newline[0]:
 						self.VHZlpfreq = newline[1].strip()
 					elif "channelexc" in newline[0]:
@@ -330,31 +282,15 @@ class readStations(object):
 		self.plotspathcmt = "# temporary plots path (user defined)"
 		self.helihtmlpathcmt = "# temporary heli html path (user defined)"	
 		self.EHZfiltertypecmt = "# EHZ filter type"
-		self.EHZprefiltf1cmt = "# EHZ prefilt f1"
-		self.EHZprefiltf2cmt = "# EHZ prefilt f2"
-		self.EHZprefiltf3cmt = "# EHZ prefilt f3"
-		self.EHZprefiltf4cmt = "# EHZ prefilt f4"
-		self.EHZnotchfreqcmt = "# EHZ notch frequency"
 		self.EHZhpfreqcmt = "# EHZ highpass frequency"
+		self.EHZnotchfreqcmt = "# EHZ notch frequency"
 		self.BHZfiltertypecmt = "# BHZ filter type"
-		self.BHZprefiltf1cmt = "# BHZ prefilt f1"
-		self.BHZprefiltf2cmt = "# BHZ prefilt f2"
-		self.BHZprefiltf3cmt = "# BHZ prefilt f3"
-		self.BHZprefiltf4cmt = "# BHZ prefilt f4"
 		self.BHZbplowerfreqcmt = "# BHZ bplower freq"
 		self.BHZbpupperfreqcmt = "# BHZ bpupper freq"
 		self.LHZfiltertypecmt = "# LHZ filter type"
-		self.LHZprefiltf1cmt = "# LHZ prefilt f1"
-		self.LHZprefiltf2cmt = "# LHZ prefilt f2"
-		self.LHZprefiltf3cmt = "# LHZ prefilt f3"
-		self.LHZprefiltf4cmt = "# LHZ prefilt f4"
 		self.LHZbplowerfreqcmt = "# LHZ bplower freq"
 		self.LHZbpupperfreqcmt = "# LHZ bpupper freq"
 		self.VHZfiltertypecmt = "# VHZ filter type"
-		self.VHZprefiltf1cmt = "# VHZ prefilt f1"	
-		self.VHZprefiltf2cmt = "# VHZ prefilt f2"	
-		self.VHZprefiltf3cmt = "# VHZ prefilt f3"	
-		self.VHZprefiltf4cmt = "# VHZ prefilt f4"	
 		self.VHZlpfreqcmt = "# VHZ lowpass frequency"
 		self.magnificationexccmt = "# magnification exceptions list"	
 		self.cfgcmt = "# ---------------------------------------------------\n# Config file is populated by readStations.py\n# station info will be read from station list\n# execution times will depend on cronjob or an\n# external time file that lists times for each station\n# ---------------------------------------------------\n# **NOTE: Each filter design has 4 prefilter corner freqs\n# ---------------------------------------------------\n"
