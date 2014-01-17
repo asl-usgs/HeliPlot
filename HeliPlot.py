@@ -15,6 +15,7 @@ import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
 import signal
+import logging
 #from matplotlib.pyplot import title, figure, savefig
 
 # -----------------------------------------------------------------
@@ -64,15 +65,25 @@ class HeliPlot(object):
 			# Print CWBQuery() contents	
 			#print "java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'	
 			# -----------------------------------------------------------	
-			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, shell=True)
+			
+			# subprocess.Popen() needs to have a logger to track
+			# child process hangs (zombies). Also need to introduce
+			# a block that will kill all child processes if there
+			# is an error exception. All errors/warnings/info should
+			# be logged
+			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			proc.wait()	# wait for child processes to finish (zombies) 
 			(out, err) = proc.communicate()
-			print out	
+			print out 
+			print err 
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt: terminate cwbQuery() workers"	
+			print "KeyboardInterrupt (cwbQuery() subprocess): terminate cwbQuery() workers"	
 			raise KeyboardInterruptError()	
+			return	# returns to cwbQuery pool	
 		except Exception as e:
-			print "*****Exception found = " + str(e)
-
+			print "*****Exception (cwbQuery() subprocess): " + str(e)
+			return	# returns to cwbQuery pool	
+		
 	def parallelcwbQuery(self):
 		# --------------------------------------------------
 		# Initialize all variables needed to run cwbQuery()
@@ -93,23 +104,33 @@ class HeliPlot(object):
 		pool = multiprocessing.Pool(PROCESSES) 
 		try:
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))
-			
-			pool.close()
+		
+			# pool.close()/pool.terminate() must be called before pool.join() 
+			# pool.close() prevents more tasks from being submitted to pool, 
+			# 	       once tasks have been completed the worker processes 
+			#	       will exit
+			# pool.terminate() stops worker processes immediately without completing
+			# 		   outstanding work, when the pool object is garbage
+			#		   collected terminate() will be called immediately
+			# pool.join() wait for worker processes to exit 
 			pool.join()	
-			pool.terminate()	
-			pool.join()	
+			pool.close()	
 			print "-------cwbQuery() Pool Complete------\n\n"
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating cwbQuery() workers"
+			print "KeyboardInterrupt (parallelcwbQuery() pool): terminating cwbQuery() workers"
 			pool.terminate()
 			pool.join()	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
 			sys.exit(0)	
+			os.wait()	# wait for all threads to terminate 
 			print "Pool cwbQuery() is terminated"	
 		except Exception, e:
-			print "Got exception: %r, terminating the Pool" % (e,)
+			print "Exception (parallelcwbQuery() pool): %r, terminating the Pool" % (e,)
 			pool.terminate()
 			pool.join()	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
 			sys.exit(0)
+			os.wait()	# wait for all threads to terminate 
 			print "Pool cwbQuery() is terminated"
 
 	def pullTraces(self):
@@ -128,7 +149,7 @@ class HeliPlot(object):
 			try:
 				stream[i] = read(filelist[i])	# read MSEED files from query
 			except Exception as e:
-				print "*****Exception found = " + str(e)
+				print "*****Exception (pullTraces(), read(MSEED)): " + str(e)
 			i = i - 1
 		
 		try:
@@ -168,11 +189,11 @@ class HeliPlot(object):
 			self.stream = stream
 			print "--------pullTraces() Complete------\n\n"
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating pullTraces() method"
+			print "KeyboardInterrupt (pullTraces() main()): terminating pullTraces() method"
 			sys.exit(0)
 			print "Method pullTraces() is terminated"
 		except Exception as e:
-			print "*****Exception found = " + str(e)
+			print "*****Exception (pullTraces() main()): " + str(e)
 
 	def freqResponse(self):
 		# -----------------------------------------------------------
@@ -226,11 +247,11 @@ class HeliPlot(object):
 				print "\n"
 			print "-------freqResponse() Complete------\n\n"
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating freqResponse() method" 
+			print "KeyboardInterrupt (freqResponse()): terminating freqResponse() method" 
 			sys.exit(0)
 			print "Method freqResponse() is terminated"
 		except Exception as e:
-			print "*****Exception found = " + str(e)
+			print "*****Exception (freqResponse()): " + str(e)
 
 	def freqDeconvFilter(self, stream, response):
 		# ----------------------------------------	
@@ -268,7 +289,8 @@ class HeliPlot(object):
 			# Deconvolution (remove sensitivity)
 			sensitivity = "Sensitivity:"	# pull sensitivity from RESP file
 			grepSensitivity = "grep " + '"' + sensitivity + '"' + " " + nameres + " | tail -1"
-			proc = subprocess.Popen([grepSensitivity], stdout=subprocess.PIPE, shell=True)
+			proc = subprocess.Popen([grepSensitivity], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			proc.wait()	# wait for child processes to finish (zombies) 
 			(out, err) = proc.communicate()
 			tmps = out.strip()
 			tmps = re.split(':', tmps)
@@ -299,10 +321,12 @@ class HeliPlot(object):
 			print "Filtered stream = " + str(stream) + "\n"	
 			return stream 
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt: terminate freqDeconvFilter() workers"
+			print "KeyboardInterrupt (freqDeconvFilter()): terminate freqDeconvFilter() workers"
 			raise KeyboardInterruptError()
+			return	# returns to freqDeconvFilter() pool	
 		except Exception as e:
-			print "*****Exception found = " + str(e)
+			print "*****Exception (freqDeconvFilter()): " + str(e)
+			return	# returns to freqDeconvFilter() pool	
 	
 	def parallelfreqDeconvFilter(self):
 		# -------------------------------------------------------------------
@@ -330,22 +354,24 @@ class HeliPlot(object):
 			
 			pool.close()
 			pool.join()	
-			pool.terminate()	
-			pool.join()
 			
 			self.flt_streams = flt_streams
 			print "-------freqDeconvFilter() Pool Complete------\n\n"
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating freqDeconvFilter() workers"
+			print "KeyboardInterrupt (parallelfreqDeconvFilter() pool): terminating freqDeconvFilter() workers"
 			pool.terminate()
 			pool.join()	
-			sys.exit(0)	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
+			sys.exit(0)
+			os.wait()	# wait for all threads to terminate 
 			print "Pool freqDeconvFilter() is terminated"
 		except Exception, e:
-			print "Got exception: %r, terminating the Pool" % (e,)
+			print "Exception (parallelfreqDeconvFilter() pool): %r, terminating the Pool" % (e,)
 			pool.terminate()
 			pool.join()	
-			sys.exit(0)	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
+			sys.exit(0)
+			os.wait()	# wait for all threads to terminate 
 			print "Pool freqDeconvFilter() is terminated"
 
 	def magnifyData(self):
@@ -382,11 +408,11 @@ class HeliPlot(object):
 			print "------magnifyData() Complete------\n\n"	
 			return streams	
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating magnifyData() method"
+			print "KeyboardInterrupt (magnifyData()): terminating magnifyData() method"
 			sys.exit(0)
 			print "Method magnifyData() is terminated"
 		except Exception as e:
-			print "*****Exception found = " + str(e)
+			print "*****Exception (magnifyData()): " + str(e)
 
 	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
@@ -409,24 +435,28 @@ class HeliPlot(object):
 	
 			# pass explicit figure instance to set correct title and attributes	
 			dpl = plt.figure()	
-			stream.plot(type='dayplot', interval=60,
+			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M:%S")	
+			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,
+				type='dayplot', interval=60,
 				vertical_scaling_range=self.vertrange,
 				right_vertical_lables=False, number_of_ticks=7,
 				one_tick_per_line=True, color=['k'], fig = dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
 			plt.title(stream[0].getId()+"  "+"Start Date/Time: "+\
-				str(self.datetimeQuery)+"  "+"Filter: "+\
+				str(titlestartTime)+"  "+"Filter: "+\
 				str(filtertype)+"  "+\
 				"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+\
 				"  "+"Magnification = "+str(magnification), fontsize=7)
 			plt.savefig(stationName+"."+self.imgformat)
 
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt: terminate plotVelocity() workers"
+			print "KeyboardInterrupt (plotVelocity()): terminate plotVelocity() workers"
 			raise KeyboardInterruptError()
+			return	# returns to plotVelocity() pool	
 		except Exception as e:
-			print "*****Exception found = " + str(e)
+			print "*****Exception (plotVelocity()): " + str(e)
+			return	# returns to plotVelocity() pool	
 
 	def parallelPlotVelocity(self, streams):	
 		# --------------------------------------------------------
@@ -449,20 +479,22 @@ class HeliPlot(object):
 			
 			pool.close()
 			pool.join()
-			pool.terminate()
-			pool.join()
 			print "------plotVelocity() Pool Complete------\n\n"
 		except KeyboardInterrupt:
-			print "Caught KeyboardInterrupt: terminating plotVelocity() workers"
+			print "KeyboardInterrupt (parallelPlotVelocity() pool): terminating plotVelocity() workers"
 			pool.terminate()
-			pool.join()
+			pool.join()	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
 			sys.exit(0)
+			os.wait()	# wait for all threads to terminate 
 			print "Pool plotVelocity() is terminated"
 		except Exception, e:
-			print "Get exception: %r, terminating the Pool" % (e,)
+			print "Exception (parallelPlotVelocity() pool): %r, terminating the Pool" % (e,)
 			pool.terminate()
-			pool.join()
+			pool.join()	
+			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
 			sys.exit(0)
+			os.wait()	# wait for all threads to terminate 
 			print "Pool plotVelocity() is terminated"
 
 	def __init__(self, **kwargs):
@@ -472,6 +504,10 @@ class HeliPlot(object):
 		# 2) Date/time info for station
 		# 3) Duration of signal
 		# -----------------------------------------
+		
+		# Set up logger for multithreading and subprocess.Popen() methods
+		logger = logging.getLogger(__name__)
+		
 		fin = open('station.cfg', 'r')
 		data = {}	# dict of cwb config data
 		data['station'] = []	# list for multiple stations
@@ -556,7 +592,16 @@ class HeliPlot(object):
 
 		# Get current date/time and subtract a day
 		# this will always pull the current time on the system
-		time = datetime.utcnow() - timedelta(days=1)
+		#time = datetime.utcnow() - timedelta(days=1)
+		time = datetime(2014, 1, 13, 12, 15, 0, 0) - timedelta(days=1)
+		time2 = time + timedelta(hours=1)	
+		time2str = time2.strftime("%Y%m%d_%H:00:00")
+		time3 = time2 + timedelta(days=1)
+		time3str = time3.strftime("%Y%m%d_%H:00:00")
+		self.datetimePlotstart = UTCDateTime(time2str)
+		self.datetimePlotend = UTCDateTime(time3str)
+		print self.datetimePlotstart
+		print self.datetimePlotend
 		timestring = str(time)
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
