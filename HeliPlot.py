@@ -10,7 +10,6 @@ from obspy.signal.invsim import evalresp
 from multiprocessing import Manager, Value
 import numpy as np
 import functools
-import logging
 import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
@@ -72,10 +71,9 @@ class HeliPlot(object):
 			# is an error exception. All errors/warnings/info should
 			# be logged
 			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-			proc.wait()	# wait for child processes to finish (zombies) 
-			(out, err) = proc.communicate()
+			(out, err) = proc.communicate(timeout=10)	# read data from stdout/stderr until EOF and wait for process to terminate
 			print out 
-			print err 
+			print err 	
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (cwbQuery() subprocess): terminate cwbQuery() workers"	
 			raise KeyboardInterruptError()	
@@ -100,8 +98,7 @@ class HeliPlot(object):
 		# instances of cwbQuery()
 		# -----------------------------------------------
 		cpu_count = multiprocessing.cpu_count()
-		PROCESSES = cpu_count
-		pool = multiprocessing.Pool(PROCESSES) 
+		pool = multiprocessing.Pool(cpu_count) 
 		try:
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))
 		
@@ -113,8 +110,8 @@ class HeliPlot(object):
 			# 		   outstanding work, when the pool object is garbage
 			#		   collected terminate() will be called immediately
 			# pool.join() wait for worker processes to exit 
-			pool.join()	
 			pool.close()	
+			pool.join()	
 			print "-------cwbQuery() Pool Complete------\n\n"
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (parallelcwbQuery() pool): terminating cwbQuery() workers"
@@ -504,10 +501,6 @@ class HeliPlot(object):
 		# 2) Date/time info for station
 		# 3) Duration of signal
 		# -----------------------------------------
-		
-		# Set up logger for multithreading and subprocess.Popen() methods
-		logger = logging.getLogger(__name__)
-		
 		fin = open('station.cfg', 'r')
 		data = {}	# dict of cwb config data
 		data['station'] = []	# list for multiple stations
