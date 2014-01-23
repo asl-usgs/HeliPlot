@@ -13,8 +13,7 @@ import functools
 import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
-import signal
-import logging
+import signal, logging, psutil, time
 #from matplotlib.pyplot import title, figure, savefig
 
 # -----------------------------------------------------------------
@@ -38,6 +37,8 @@ import logging
 
 class KeyboardInterruptError(Exception): pass	# raises KeyboardInterrupts for multiprocessing methods
 
+class TimeoutExpiredError(Exception): pass	# raises TimeoutExpired errors for multiprocessing subprocess methods
+
 # Unpack self from arguments and call method cwbQuery()
 def unwrap_self_cwbQuery(args, **kwargs):
 	return HeliPlot.cwbQuery(*args, **kwargs)
@@ -55,6 +56,44 @@ def unwrap_self_plotVelocity(args, **kwargs):
 # streams are then filtered and plotted using ObsPy
 # ---------------------------------------------------------
 class HeliPlot(object):
+	def killSubprocess(self, proc, signum):
+		# -----------------------------
+		# Kills pool subprocess child
+		# proc.kill()
+		# os.kill(proc.pid, signum)
+		# kill = os.killpg(proc.pid, signum)
+		# -----------------------------
+		print "Killing child %6s" % proc.pid	
+		time.sleep(1)	
+		# Add conditional statement deciphering
+		# timeout errors from keyboard interrupts
+		(out, err) = proc.communicate()
+		print out
+		print err
+		sys.stdout.flush()
+		sys.stderr.flush()
+
+	def killPool(self, pool, pid, name):
+		# ------------------------------
+		# Kills pool including children	
+		# sys.exit(0)
+		# os.wait()	# wait for all threads to terminate
+		# ------------------------------	
+		# find/kill all child processes (mpEvent/poolClose)
+		pool.terminate()
+		pool.join()
+		time.sleep(1)
+		print "Pool %s is terminated" % name
+		parent = psutil.Process(pid)
+		# set recursive=True to kill grandchildren	
+		print "Killing children of pool %6s..." % pid	
+		time.sleep(1)	
+		for child in parent.get_children(recursive=True):
+			child.kill()	# kill children of pool 
+		print "Killing pool %6s..." % pid
+		time.sleep(1)	
+		parent.kill()	# kill pool (parent)
+
 	def cwbQuery(self, station):
 		# ------------------------------------------------
 		# Pull specific station seed file using CWBQuery
@@ -70,17 +109,27 @@ class HeliPlot(object):
 			# a block that will kill all child processes if there
 			# is an error exception. All errors/warnings/info should
 			# be logged
-			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-			(out, err) = proc.communicate(timeout=10)	# read data from stdout/stderr until EOF and wait for process to terminate
+			proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid, shell=True)
+			(out, err) = proc.communicate(timeout=10)	# waits for child proc 
+			print proc.pid	
 			print out 
 			print err 	
+			sys.stdout.flush()
+			sys.stderr.flush()
+		except subprocess.TimeoutExpired:
+			print "TimeoutExpired (cwbQuery() subprocess): terminate cwbQuery() workers"	
+			self.killSubprocess(proc, signal.SIGKILL)	
+			raise TimeoutExpiredError()
+			return	# returns to cwbQuery pool	
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (cwbQuery() subprocess): terminate cwbQuery() workers"	
+			self.killSubprocess(proc, signal.SIGKILL)	
 			raise KeyboardInterruptError()	
-			return	# returns to cwbQuery pool	
+			return	
 		except Exception as e:
 			print "*****Exception (cwbQuery() subprocess): " + str(e)
-			return	# returns to cwbQuery pool	
+			self.killSubprocess(proc, signal.SIGKILL)	
+			return	
 		
 	def parallelcwbQuery(self):
 		# --------------------------------------------------
@@ -97,38 +146,35 @@ class HeliPlot(object):
 		# Create multiprocessing pools to run multiple 
 		# instances of cwbQuery()
 		# -----------------------------------------------
-		cpu_count = multiprocessing.cpu_count()
-		pool = multiprocessing.Pool(cpu_count) 
+		PROCESSES = multiprocessing.cpu_count()
+		print "PROCESSES = " + str(PROCESSES)
+		pool = multiprocessing.Pool(PROCESSES)
 		try:
+			poolpid = os.getpid()	
+			poolname = "cwbQuery()"	
+			print "pool PID = " + str(poolpid) + "\n"	
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))
 		
 			# pool.close()/pool.terminate() must be called before pool.join() 
-			# pool.close() prevents more tasks from being submitted to pool, 
-			# 	       once tasks have been completed the worker processes 
-			#	       will exit
-			# pool.terminate() stops worker processes immediately without completing
-			# 		   outstanding work, when the pool object is garbage
-			#		   collected terminate() will be called immediately
-			# pool.join() wait for worker processes to exit 
+			# pool.close(): prevents more tasks from being submitted to pool, 
+			# once tasks have been completed the worker processes will exit
+			# pool.terminate(): stops worker processes immediately without completing
+			# outstanding work, when the pool object is garbage collected terminate() 
+			# will be called immediately
+			# pool.join(): wait for worker processes to exit 
 			pool.close()	
 			pool.join()	
 			print "-------cwbQuery() Pool Complete------\n\n"
+		except TimeoutExpiredError:
+			print "TimeoutExpiredError (parallelcwbQuery() pool): terminating cwbQuery() workers"
+			# find/kill all child processes 
+			self.killPool(pool, poolpid, poolname)	
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt (parallelcwbQuery() pool): terminating cwbQuery() workers"
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)	
-			os.wait()	# wait for all threads to terminate 
-			print "Pool cwbQuery() is terminated"	
+			print "KeyboardInterruptError (parallelcwbQuery() pool): terminating cwbQuery() workers"
+			self.killPool(pool, poolpid, poolname)	
 		except Exception, e:
 			print "Exception (parallelcwbQuery() pool): %r, terminating the Pool" % (e,)
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)
-			os.wait()	# wait for all threads to terminate 
-			print "Pool cwbQuery() is terminated"
+			self.killPool(pool, poolpid, poolname)
 
 	def pullTraces(self):
 		# ------------------------------------------------
@@ -147,6 +193,8 @@ class HeliPlot(object):
 				stream[i] = read(filelist[i])	# read MSEED files from query
 			except Exception as e:
 				print "*****Exception (pullTraces(), read(MSEED)): " + str(e)
+				sys.exit(0)
+				print "Method pullTraces() is terminated!"
 			i = i - 1
 		
 		try:
@@ -188,9 +236,11 @@ class HeliPlot(object):
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (pullTraces() main()): terminating pullTraces() method"
 			sys.exit(0)
-			print "Method pullTraces() is terminated"
+			print "Method pullTraces() is terminated!"
 		except Exception as e:
 			print "*****Exception (pullTraces() main()): " + str(e)
+			sys.exit(0)
+			print "Method pullTraces() is terminated!"
 
 	def freqResponse(self):
 		# -----------------------------------------------------------
@@ -246,9 +296,11 @@ class HeliPlot(object):
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (freqResponse()): terminating freqResponse() method" 
 			sys.exit(0)
-			print "Method freqResponse() is terminated"
+			print "Method freqResponse() is terminated!"
 		except Exception as e:
 			print "*****Exception (freqResponse()): " + str(e)
+			sys.exit(0)
+			print "Method freqResponse() is terminated!"
 
 	def freqDeconvFilter(self, stream, response):
 		# ----------------------------------------	
@@ -279,6 +331,8 @@ class HeliPlot(object):
 			filtertype = self.VHZfiltertype
 			lpfreq = self.VHZlpfreq
 			
+		# Try/Catch block for Sensitivity Subprocess	
+		# exceptions will be included for filters	
 		try:	
 			print "Filter stream " + namestr + " and response " + nameres 
 			print namechan + " filtertype = " + str(filtertype) 
@@ -286,13 +340,17 @@ class HeliPlot(object):
 			# Deconvolution (remove sensitivity)
 			sensitivity = "Sensitivity:"	# pull sensitivity from RESP file
 			grepSensitivity = "grep " + '"' + sensitivity + '"' + " " + nameres + " | tail -1"
+			self.subprocess = True	# flag for exceptions (if !subprocess return)	
 			proc = subprocess.Popen([grepSensitivity], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-			proc.wait()	# wait for child processes to finish (zombies) 
-			(out, err) = proc.communicate()
+			(out, err) = proc.communicate(timeout=10)	# waits for child proc
 			tmps = out.strip()
 			tmps = re.split(':', tmps)
 			s = float(tmps[1].strip())
 			print "sensitivity = " + str(s) 
+			sys.stdout.flush()
+			sys.stderr.flush()
+			self.subprocess = False	# subprocess finished
+
 			# divide data by sensitivity	
 			#stream.simulate(paz_remove=None, pre_filt=(c1, c2, c3, c4), seedresp=response, taper='True')	# deconvolution (this will be a flag for the user)
 			
@@ -317,13 +375,25 @@ class HeliPlot(object):
 
 			print "Filtered stream = " + str(stream) + "\n"	
 			return stream 
+		except subprocess.TimeoutExpired:
+			print "TimeoutExpired (freqDeconvFilter() subprocess): terminate freqDeconvFilter() workers"	
+			if self.subprocess:		
+				self.killSubprocess(proc, signal.SIGKILL)
+			raise TimeoutExpiredError()
+			return	# return to freqDeconvFilter pool
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt (freqDeconvFilter()): terminate freqDeconvFilter() workers"
+			print "KeyboardInterrupt (freqDeconvFilter() subprocess): terminate freqDeconvFilter() workers"
+			# if interrupt during subprocess kill child else return	
+			if self.subprocess:	
+				self.killSubprocess(proc, signal.SIGKILL)
 			raise KeyboardInterruptError()
-			return	# returns to freqDeconvFilter() pool	
+			return
 		except Exception as e:
-			print "*****Exception (freqDeconvFilter()): " + str(e)
-			return	# returns to freqDeconvFilter() pool	
+			print "*****Exception (freqDeconvFilter() subprocess): " + str(e)
+			# if exception during subprocess kill child else return	
+			if self.subprocess:	
+				self.killSubprocess(proc, signal.SIGKILL)
+			return
 	
 	def parallelfreqDeconvFilter(self):
 		# -------------------------------------------------------------------
@@ -343,10 +413,13 @@ class HeliPlot(object):
 
 		# Deconvolution/Prefilter	
 		# Initialize multiprocessing pools
-		cpu_count = multiprocessing.cpu_count()
-		PROCESSES = cpu_count
+		PROCESSES = multiprocessing.cpu_count()
+		print "PROCESSES = " + str(PROCESSES) 	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
+			poolpid = os.getpid()	
+			poolname = "freqDeconvFilter()"
+			print "pool PID = " + str(poolpid) + "\n"
 			flt_streams = pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
 			
 			pool.close()
@@ -354,22 +427,16 @@ class HeliPlot(object):
 			
 			self.flt_streams = flt_streams
 			print "-------freqDeconvFilter() Pool Complete------\n\n"
+		except TimeoutExpiredError:
+			print "TimeoutExpiredError (parallelfreqDeconvFilter() pool): terminating freqDeconvFilter() workers"
+			# find/kill all child processes
+			self.killPool(pool, poolpid, poolname)
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt (parallelfreqDeconvFilter() pool): terminating freqDeconvFilter() workers"
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)
-			os.wait()	# wait for all threads to terminate 
-			print "Pool freqDeconvFilter() is terminated"
+			print "KeyboardInterruptError (parallelfreqDeconvFilter() pool): terminating freqDeconvFilter() workers"
+			self.killPool(pool, poolpid, poolname)
 		except Exception, e:
 			print "Exception (parallelfreqDeconvFilter() pool): %r, terminating the Pool" % (e,)
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)
-			os.wait()	# wait for all threads to terminate 
-			print "Pool freqDeconvFilter() is terminated"
+			self.killPool(pool, poolpid, poolname)
 
 	def magnifyData(self):
 		# ----------------------------------------
@@ -407,9 +474,11 @@ class HeliPlot(object):
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (magnifyData()): terminating magnifyData() method"
 			sys.exit(0)
-			print "Method magnifyData() is terminated"
+			print "Method magnifyData() is terminated!"
 		except Exception as e:
 			print "*****Exception (magnifyData()): " + str(e)
+			sys.exit(0)
+			print "Method magnifyData() is terminated!"
 
 	def plotVelocity(self, stream, stationName):
 		# --------------------------------------------------------
@@ -440,6 +509,7 @@ class HeliPlot(object):
 				one_tick_per_line=True, color=['k'], fig = dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
+			plt.	
 			plt.title(stream[0].getId()+"  "+"Start Date/Time: "+\
 				str(titlestartTime)+"  "+"Filter: "+\
 				str(filtertype)+"  "+\
@@ -468,31 +538,25 @@ class HeliPlot(object):
 		#events={"min_magnitude": 6.5}	
 	
 		# Initialize multiprocessing pools for plotting
-		cpu_count = multiprocessing.cpu_count()
-		PROCESSES = cpu_count
+		PROCESSES = multiprocessing.cpu_count()
+		print "PROCESSES = " + str(PROCESSES)	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
+			poolpid = os.getpid()
+			poolname = "plotVelocity()"
+			print "pool PID = " + str(poolpid) + "\n"
 			pool.map(unwrap_self_plotVelocity, zip([self]*streamlen, streams, self.stationName))	# thread plots
 			
 			pool.close()
 			pool.join()
 			print "------plotVelocity() Pool Complete------\n\n"
 		except KeyboardInterrupt:
-			print "KeyboardInterrupt (parallelPlotVelocity() pool): terminating plotVelocity() workers"
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)
-			os.wait()	# wait for all threads to terminate 
-			print "Pool plotVelocity() is terminated"
+			print "KeyboardInterruptError (parallelplotVelocity() pool): terminating plotVelocity() workers"
+			# find/kill all child processes 	
+			self.killPool(pool, poolpid, poolname)
 		except Exception, e:
-			print "Exception (parallelPlotVelocity() pool): %r, terminating the Pool" % (e,)
-			pool.terminate()
-			pool.join()	
-			#signal.signal(signal.SIGTERM, term)	# need to implement a sighandler
-			sys.exit(0)
-			os.wait()	# wait for all threads to terminate 
-			print "Pool plotVelocity() is terminated"
+			print "Exception (parallelplotVelocity() pool): %r, terminating the Pool" % (e,)
+			self.killPool(pool, poolpid, poolname)
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -585,16 +649,16 @@ class HeliPlot(object):
 
 		# Get current date/time and subtract a day
 		# this will always pull the current time on the system
-		#time = datetime.utcnow() - timedelta(days=1)
-		time = datetime(2014, 1, 13, 12, 15, 0, 0) - timedelta(days=1)
+		time = datetime.utcnow() - timedelta(days=1)
+		#time = datetime(2014, 1, 13, 12, 15, 0, 0) - timedelta(days=1)	# earthquake
 		time2 = time + timedelta(hours=1)	
 		time2str = time2.strftime("%Y%m%d_%H:00:00")
 		time3 = time2 + timedelta(days=1)
 		time3str = time3.strftime("%Y%m%d_%H:00:00")
 		self.datetimePlotstart = UTCDateTime(time2str)
 		self.datetimePlotend = UTCDateTime(time3str)
-		print self.datetimePlotstart
-		print self.datetimePlotend
+		print "datetimePlotstart = " + str(self.datetimePlotstart)
+		print "datetimePlotend = " + str(self.datetimePlotend)
 		timestring = str(time)
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
