@@ -486,7 +486,7 @@ class HeliPlot(object):
 		# --------------------------------------------------------
 		#stream.merge(method=1, fill_value='interpolate', interpolation_samples=100)	# for gapped/overlapped data run a linear interpolation with 100 samples
 		try:
-			print "Plotting velocity data for station " + str(stationName) + "\n"
+			print "Plotting velocity data for station " + str(stationName) 
 			magnification = self.magnification[stream[0].getId()]	# magnification for station[i]
 			tmpstr = re.split("\\.", stream[0].getId())
 			namechan = tmpstr[3].strip()
@@ -502,20 +502,44 @@ class HeliPlot(object):
 			# pass explicit figure instance to set correct title and attributes	
 			dpl = plt.figure()	
 			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M:%S")	
-			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,
-				type='dayplot', interval=60,
-				vertical_scaling_range=self.vertrange,
-				right_vertical_lables=False, number_of_ticks=7,
-				one_tick_per_line=True, color=['k'], fig = dpl,
-				show_y_UTC_label=False, size=(self.resx,self.resy),
+			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,\
+				type='dayplot', interval=60,\
+				vertical_scaling_range=self.vertrange,\
+				right_vertical_labels=False, number_of_ticks=7,\
+				one_tick_per_line=True, color=['k'], fig=dpl,\
+				show_y_UTC_label=False, size=(self.resx,self.resy),\
 				dpi=self.pix, title_size=-1)
-			plt.	
-			plt.title(stream[0].getId()+"  "+"Start Date/Time: "+\
+			plt.title(stream[0].getId()+"  "+"Start: "+\
 				str(titlestartTime)+"  "+"Filter: "+\
 				str(filtertype)+"  "+\
-				"Vertical Trace Spacing = Ground Vel = 3.33E-4 mm/sec"+\
-				"  "+"Magnification = "+str(magnification), fontsize=7)
-			plt.savefig(stationName+"."+self.imgformat)
+				"Trace Spacing = 3.33E-4 mm/sec"+\
+				"  "+"Mag = "+str(magnification), fontsize=10)
+			plt.xlabel('Time [m]', fontsize=12)	
+			plt.ylabel('Time [h]', fontsize=12)	
+			locs, labels = plt.yticks()	# pull current locs/labels	
+			hours = [0 for i in range(len(labels))]		
+			for i in range(len(labels)):	# extract hours from labels
+				tmptime = re.split(':', labels[i].get_text())	
+			 	hours[i] = int(tmptime[0]) 
+			posilist = [i+0.5 for i in range(24)]	# create tick position list
+			posilist = posilist[::-1]	# reverse list	
+			timelist = [0 for i in range(24)]	# timelist for tick hours
+			timelen = len(timelist)	
+			starthr = hours[0]	# start hour 	
+			if starthr < 23:
+				startlen = 23 - starthr + 1	# hours are from 0-23
+			else:
+				startlen = 0
+			startlist = range(starthr, starthr+startlen)	# start of list 0-23 
+			startlen = len(startlist)	
+			timelist[0:startlen] = startlist	# end of start should be 23	
+			timelist[startlen:timelen] = range(0, timelen-startlen) 
+			for i in range(len(timelist)):
+				timelist[i] = str(timelist[i]) + ":00"
+			plt.yticks(posilist, timelist, fontsize=9)	
+			print "\n"	
+			#dpi=self.pix, size=(self.resx,self.resy))
+			plt.savefig(stationName+"."+self.imgformat) 
 
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (plotVelocity()): terminate plotVelocity() workers"
