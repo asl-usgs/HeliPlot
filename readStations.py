@@ -1,10 +1,22 @@
 #!/usr/bin/env python
-import os, re, string
 
 # ----------------------------------------------------------
-# Script reads in stationNames.txt file and prestation.cfg 
-# and creates a station.cfg file for HeliPlot.py 
+# Author: Alejandro Gonzales
+# Filename: readStations.py 
 # ----------------------------------------------------------
+# Purpose: Script reads in stationNames.txt file and 
+# prestation.cfg and creates a station.cfg file for 
+# HeliPlot.py 
+# ----------------------------------------------------------
+# Methods (keyword search):
+#	* prestationInfo()
+#	* storeStations()	
+#	* writeDefaultVariables()
+#	* writePaths()	
+#	* writeFilterVariables()
+#	* writeStations()	
+# ----------------------------------------------------------
+import os, re, string
 
 class readStations(object):
 	def __init__(self):
@@ -102,12 +114,16 @@ class readStations(object):
 		if not os.path.exists(self.plotspath):
 			print self.plotspath + " DNE, creating path..."
 			os.makedirs(self.plotspath)
+		if not os.path.exists(self.thumbpath):
+			print self.thumbpath + " DNE, creating path..."
+			os.makedirs(self.thumbpath)
 		if not os.path.exists(self.helihtmlpath):
 			print self.helihtmlpath + " DNE, creating path..."
 			os.makedirs(self.helihtmlpath)
 		cfgout.write("# Directory paths for seedfiles, plots, responses, etc.\n")
 		cfgout.write(self.seedpath + "\t" + self.seedpathcmt + "\n")
 		cfgout.write(self.plotspath + "\t" + self.plotspathcmt + "\n")
+		cfgout.write(self.thumbpath + "\t" + self.thumbpathcmt + "\n")	
 		cfgout.write(self.helihtmlpath + "\t" + self.helihtmlpathcmt + "\n")	
 		cfgout.write(self.cwbquery + "\t" + self.cwbquerycmt + "\n")
 		cfgout.write(self.resppath + "\t" + self.resppathcmt + "\n\n")
@@ -204,6 +220,8 @@ class readStations(object):
 						self.seedpath = newline[1].strip()
 					elif "plotspath" in newline[0]:
 						self.plotspath = newline[1].strip()
+					elif "thumbpath" in newline[0]:
+						self.thumbpath = newline[1].strip()
 					elif "helihtmlpath" in newline[0]:
 						self.helihtmlpath = newline[1].strip()
 					elif "EHZfiltertype" in newline[0]:
@@ -280,6 +298,7 @@ class readStations(object):
 		self.resppathcmt = "# responses path (system path)"
 		self.seedpathcmt = "# temporary seed path (user defined)"
 		self.plotspathcmt = "# temporary plots path (user defined)"
+		self.thumbpathcmt = "# temporary thumbnails path (user defined)"	
 		self.helihtmlpathcmt = "# temporary heli html path (user defined)"	
 		self.EHZfiltertypecmt = "# EHZ filter type"
 		self.EHZhpfreqcmt = "# EHZ highpass frequency"

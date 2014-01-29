@@ -1,24 +1,11 @@
 #!/usr/bin/env python
 
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt	# will use title, figure, savefig methods
-
-from obspy.core.utcdatetime import UTCDateTime
-from obspy.core.stream import read
-from obspy.signal.invsim import evalresp
-from multiprocessing import Manager, Value
-import numpy as np
-import functools
-import multiprocessing
-import warnings, glob, re, os, sys, string, subprocess
-from datetime import datetime, timedelta
-import signal, logging, psutil, time
-#from matplotlib.pyplot import title, figure, savefig
-
 # -----------------------------------------------------------------
-# Script reads in configurations from station.cfg and queries
-# stations, station data is then deconvolved, filtered, 
+# Author: Alejandro Gonzales
+# Filename: HeliPlot.py
+# -----------------------------------------------------------------
+# Purpose: Script reads in configurations from station.cfg and 
+# queries stations, station data is then deconvolved, filtered, 
 # magnified and plotted. Outputs will be station data images in
 # a jpg format. When script is finished processing, run
 # run_heli_24hr.py to generate HTML files for each station
@@ -33,7 +20,25 @@ import signal, logging, psutil, time
 #	* magnifyData()
 #	* parallelPlotVelocity()
 #	* plotVelocity()
+#	* createThumbnails()
 # -----------------------------------------------------------------
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt	# will use title, figure, savefig methods
+import matplotlib.image as img
+
+from obspy.core.utcdatetime import UTCDateTime
+from obspy.core.stream import read
+from obspy.signal.invsim import evalresp
+from multiprocessing import Manager, Value
+import numpy as np
+import functools
+import multiprocessing
+import warnings, glob, re, os, sys, string, subprocess
+from datetime import datetime, timedelta
+import signal, logging, psutil, time
+#from matplotlib.pyplot import title, figure, savefig
+
 
 class KeyboardInterruptError(Exception): pass	# raises KeyboardInterrupts for multiprocessing methods
 
@@ -220,7 +225,6 @@ class HeliPlot(object):
 			# Loop through stream traces, if trace has sample rate = 0.0Hz
 			# => NFFT = 0, then this trace will be removed
 			print "Removing traces with 0.0Hz sampling rate from stream[][] list...\n"
-
 			for i in range(streamlen):
 				index = str(i)
 				tracelen = stream[i].count()
@@ -248,6 +252,7 @@ class HeliPlot(object):
 		# to deconvolve signal, after deconvolution filter signal
 		# -----------------------------------------------------------
 		print "--------freqResponse() Start--------\n"	
+		os.chdir(self.resppath)	# cd into response directory
 		networkID = []
 		stationID = []
 		locationID = []
@@ -285,7 +290,6 @@ class HeliPlot(object):
 				stationName.append(tmpname[1].strip())	
 				self.stationName = stationName	# store station names	
 			
-				os.chdir(self.resppath)	# cd into response directory
 				resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
 				self.resp.append(resp)	
 				print "stream[%d]" % i
@@ -367,11 +371,11 @@ class HeliPlot(object):
 			elif filtertype == "lowpass":
 				print "Filtering stream (lowpass)"
 				print "lp freq = " + str(lpfreq) 
-				stream.filter(filtertype, freq=lpfreq, corners=1)	# lowpass filter design
+				stream.filter(filtertype, freq=lpfreq, corners=4)	# lowpass filter design
 			elif filtertype == "highpass":
 				print "Filtering stream (highpass)"
 				print "hpfreq = " + str(hpfreq) 
-				stream.filter(filtertype, freq=hpfreq, corners=1)	# highpass filter design	
+				stream.filter(filtertype, freq=hpfreq, corners=4)	# highpass filter design	
 
 			print "Filtered stream = " + str(stream) + "\n"	
 			return stream 
@@ -488,20 +492,33 @@ class HeliPlot(object):
 		try:
 			print "Plotting velocity data for station " + str(stationName) 
 			magnification = self.magnification[stream[0].getId()]	# magnification for station[i]
+			trspacing = self.vertrange/magnification * 1000.0	# trace spacing	
 			tmpstr = re.split("\\.", stream[0].getId())
 			namechan = tmpstr[3].strip()
 			if namechan == "EHZ":
-				filtertype = self.EHZfiltertype
+				filtertype = self.EHZfiltertype	
+				hpfreq = self.EHZhpfreq
+				notchfreq = self.EHZnotchfreq	
+				bounds = str(hpfreq)	
 			elif namechan == "BHZ":
 				filtertype = self.BHZfiltertype
+				bplowerfreq = self.BHZbplowerfreq	
+				bpupperfreq = self.BHZbpupperfreq	
+				bounds = str(bplowerfreq) + "-" + str(bpupperfreq)	
 			elif namechan == "LHZ":
 				filtertype = self.LHZfiltertype
+				bplowerfreq = self.LHZbplowerfreq
+				bpupperfreq = self.LHZbpupperfreq	
+				bounds = str(bplowerfreq) + "-" + str(bpupperfreq)	
 			elif namechan == "VHZ":
 				filtertype = self.VHZfiltertype
-	
+				lpfreq = self.VHZlpfreq
+				bounds = str(lpfreq)
+
 			# pass explicit figure instance to set correct title and attributes	
 			dpl = plt.figure()	
-			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M:%S")	
+			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M")	
+			titlestartTime = titlestartTime + " UTC"	
 			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,\
 				type='dayplot', interval=60,\
 				vertical_scaling_range=self.vertrange,\
@@ -509,13 +526,14 @@ class HeliPlot(object):
 				one_tick_per_line=True, color=['k'], fig=dpl,\
 				show_y_UTC_label=False, size=(self.resx,self.resy),\
 				dpi=self.pix, title_size=-1)
-			plt.title(stream[0].getId()+"  "+"Start: "+\
-				str(titlestartTime)+"  "+"Filter: "+\
-				str(filtertype)+"  "+\
-				"Trace Spacing = 3.33E-4 mm/sec"+\
-				"  "+"Mag = "+str(magnification), fontsize=10)
-			plt.xlabel('Time [m]', fontsize=12)	
-			plt.ylabel('Time [h]', fontsize=12)	
+		
+			
+			# Set title, x/y labels and tick marks	
+			plt.title(stream[0].getId() + "  " + "Start: " +\
+				str(titlestartTime), fontsize=12) 
+			plt.xlabel('Time [m]\n(%s: %sHz  Trace Spacing: %.2e mm/s)' %\
+			(str(filtertype), str(bounds), trspacing), fontsize=10)	
+			plt.ylabel('Time [h]', fontsize=10)	
 			locs, labels = plt.yticks()	# pull current locs/labels	
 			hours = [0 for i in range(len(labels))]		
 			for i in range(len(labels)):	# extract hours from labels
@@ -552,14 +570,15 @@ class HeliPlot(object):
 	def parallelPlotVelocity(self, streams):	
 		# --------------------------------------------------------
 		# Plot velocity data	
+		# events={"min_magnitude": 6.5} 	
 		# --------------------------------------------------------
 		print "------plotVelocity() Pool------\n"	
 		streamlen = len(streams)	
-		os.chdir(self.plotspath)	# cd into OutputPlots directory
+		# clear outputplots directory	
+		os.chdir(self.plotspath)	
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
-			os.remove(f)	# remove temp jpg files from OutputPlots dir
-		#events={"min_magnitude": 6.5}	
+			os.remove(f)	# remove temp png files from OutputPlots dir
 	
 		# Initialize multiprocessing pools for plotting
 		PROCESSES = multiprocessing.cpu_count()
@@ -581,6 +600,28 @@ class HeliPlot(object):
 		except Exception, e:
 			print "Exception (parallelplotVelocity() pool): %r, terminating the Pool" % (e,)
 			self.killPool(pool, poolpid, poolname)
+
+	def createThumbnails(self):
+		# --------------------------------------------------------
+		# Create thumbnails from heli output plots (350x262)	
+		# --------------------------------------------------------
+		print "Creating Thumbnails from OutputPlots...\n"	
+		# clear thumbnails directory 
+		os.chdir(self.thumbpath)	# cd into Thumbnails directory	
+		thmfiles = glob.glob(self.thumbpath+"*")
+		for f in thmfiles:
+			os.remove(f)	# rm temp thumbnail files from Thumbnails dir
+	
+		# read from outputplots directory
+		imgfiles = glob.glob(self.plotspath+"*")
+		for f in imgfiles:
+			tmp = re.split('/', f)
+			tmplen = len(tmp)
+			fname = tmp[tmplen-1].strip()	# pull image name	
+			tmp = re.split('\.', fname)
+			fout = tmp[1].strip()	# pull station name
+			fout = fout + "_24hr.png"	# append png
+			img.thumbnail(f, fout, scale=0.4375)	
 
 	def __init__(self, **kwargs):
 		# -----------------------------------------
@@ -626,6 +667,8 @@ class HeliPlot(object):
 						self.seedpath = str(newline[0].strip())
 					elif "plots" in newline[1]:
 						self.plotspath = str(newline[0].strip())
+					elif "thumbnails" in newline[1]:
+						self.thumbpath = str(newline[0].strip())
 					elif "cwbquery" in newline[1]:
 						self.cwbquery = str(newline[0].strip())
 					elif "responses" in newline[1]:
@@ -711,3 +754,4 @@ if __name__ == '__main__':
 	heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
 	magnified_streams = heli.magnifyData()	# magnify trace data 
 	heli.parallelPlotVelocity(magnified_streams)	# plot filtered/magnified data	
+	heli.createThumbnails()			# create thumbnails from output plots 

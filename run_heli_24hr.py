@@ -1,13 +1,20 @@
 #!/usr/bin/env python
+
+# ----------------------------------------------------
+# Author: Alejandro Gonzales
+# Filename: run_heli_24hr.py 
+# ----------------------------------------------------
+# Purpose: Script takes all output heli plots from 
+# HeliPlot.py and inserts them into HTML files for 
+# each operable station
+# ----------------------------------------------------
+# Methods (keyword search):
+#	* gifConvert()	- Not currently used	
+#	* readImages()
+#	* heliHTML()	
+# ----------------------------------------------------
 import os, sys, re, glob, string, subprocess
 from datetime import datetime, timedelta
-
-# ------------------------------------------------
-# Script takes all output heli plots from 
-# HeliPlot.py and converts them to gif images
-# then inserts them into HTML files for each 
-# operable station
-# ------------------------------------------------
 
 class run_heli_24hr(object):
 	def __init__(self):
@@ -21,7 +28,7 @@ class run_heli_24hr(object):
 				if line != '\n':
 					newline = re.split('=', line)
 					if "plotspath" in newline[0]:
-						self.plotspath = str(newline[1].strip())
+						self.plotspath = str(newline[1].strip())	
 					elif "stationnames" in newline[0]:
 						self.stationnames = str(newline[1].strip())
 					elif "gifconvert" in newline[0]:

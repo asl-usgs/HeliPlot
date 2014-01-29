@@ -1,18 +1,26 @@
 #!/usr/bin/env python
+
+# -----------------------------------------------------------
+# Author: Alejandro Gonzales
+# Filename: stationNames.py
+# -----------------------------------------------------------
+# Purpose: Script uses the getmetadata.py script to parse 
+# dataless seedfiles for each network. The station names 
+# and locations will be extracted and then written to 
+# stationNames.txt. This text file will be parsed for the
+# networks not contained in the rmnetwork list found in
+# prestation.cfg
+# -----------------------------------------------------------
+# Methods (keyword search):
+#	* openFiles()
+#	* getLocations()
+#	* parallelMetadata()
+# -----------------------------------------------------------
 import os, re
 import multiprocessing
 import time
 import subprocess
 import signal
-
-# ---------------------------------------------------------
-# Script uses the getmetadata.py script to parse dataless
-# seedfiles for each network. The station names and 
-# locations will be extracted and then written to 
-# stationNames.txt. This text file will be parsed for the
-# networks not contained in the rmnetwork list found in
-# prestation.cfg
-# ---------------------------------------------------------
 
 # Raises KeyboardInterrupts for multiprocessing methods
 class KeyboardInterruptError(Exception): pass	
