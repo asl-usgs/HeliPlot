@@ -607,11 +607,13 @@ class HeliPlot(object):
 		# --------------------------------------------------------
 		print "Creating Thumbnails from OutputPlots...\n"	
 		# clear thumbnails directory 
+		'''
 		os.chdir(self.thumbpath)	# cd into Thumbnails directory	
 		thmfiles = glob.glob(self.thumbpath+"*")
 		for f in thmfiles:
 			os.remove(f)	# rm temp thumbnail files from Thumbnails dir
-	
+		'''
+		
 		# read from outputplots directory
 		imgfiles = glob.glob(self.plotspath+"*")
 		for f in imgfiles:
