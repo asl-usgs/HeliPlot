@@ -99,7 +99,9 @@ class readStations(object):
 		cfgout.write(self.resy + "\t" + self.resycmt + "\n")
 		cfgout.write(self.pix + "\t" + self.pixcmt + "\n")
 		cfgout.write(self.imgformat + "\t" + self.imgformatcmt + "\n")	
-		cfgout.write(self.vertrange + "\t" + self.vertrangecmt + "\n\n")
+		cfgout.write(self.vertrange + "\t" + self.vertrangecmt + "\n")
+		cfgout.write(self.cwbwait + "\t" + self.cwbwaitcmt + "\n")
+		cfgout.write(self.cwbattempts + "\t" + self.cwbattemptscmt + "\n\n")
 	
 	def writePaths(self):
 		# --------------------------------------------------	
@@ -212,6 +214,10 @@ class readStations(object):
 						self.imgformat = newline[1].strip()
 					elif "vertrange" in newline[0]:
 						self.vertrange = newline[1].strip()
+					elif "cwbwait" in newline[0]:
+						self.cwbwait = newline[1].strip()
+					elif "cwbattempts" in newline[0]:
+						self.cwbattempts = newline[1].strip()
 					elif "cwbquery" in newline[0]:
 						self.cwbquery = newline[1].strip()
 					elif "resppath" in newline[0]:
@@ -288,6 +294,8 @@ class readStations(object):
 		self.durationcmt = "# duration"
 		self.ipaddresscmt = "# ipaddress of local ANMO server"
 		self.httpportcmt = "# httpport number of local CWB Server (aslcwb.cr.usgs.gov)"
+		self.cwbwaitcmt = "# wait time for cwbquery timeout"	
+		self.cwbattemptscmt = "# number of cwbquery attempts before exiting"	
 		self.magnification_defaultcmt = "# magnification default"
 		self.resxcmt = "# xresolution"
 		self.resycmt = "# yresolution"
