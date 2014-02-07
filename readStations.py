@@ -101,8 +101,9 @@ class readStations(object):
 		cfgout.write(self.imgformat + "\t" + self.imgformatcmt + "\n")	
 		cfgout.write(self.vertrange + "\t" + self.vertrangecmt + "\n")
 		cfgout.write(self.cwbwait + "\t" + self.cwbwaitcmt + "\n")
-		cfgout.write(self.cwbattempts + "\t" + self.cwbattemptscmt + "\n\n")
-	
+		cfgout.write(self.cwbattempts + "\t" + self.cwbattemptscmt + "\n")
+		cfgout.write(self.cwbretrysleep + "\t" + self.cwbretrysleepcmt + "\n\n")
+
 	def writePaths(self):
 		# --------------------------------------------------	
 		# Create file paths for SeedFiles and OutputPlots
@@ -218,6 +219,8 @@ class readStations(object):
 						self.cwbwait = newline[1].strip()
 					elif "cwbattempts" in newline[0]:
 						self.cwbattempts = newline[1].strip()
+					elif "cwbretrysleep" in newline[0]:
+						self.cwbretrysleep = newline[1].strip()
 					elif "cwbquery" in newline[0]:
 						self.cwbquery = newline[1].strip()
 					elif "resppath" in newline[0]:
@@ -296,6 +299,7 @@ class readStations(object):
 		self.httpportcmt = "# httpport number of local CWB Server (aslcwb.cr.usgs.gov)"
 		self.cwbwaitcmt = "# wait time for cwbquery timeout"	
 		self.cwbattemptscmt = "# number of cwbquery attempts before exiting"	
+		self.cwbretrysleepcmt = "# cwbquery sleep time for retry"	
 		self.magnification_defaultcmt = "# magnification default"
 		self.resxcmt = "# xresolution"
 		self.resycmt = "# yresolution"

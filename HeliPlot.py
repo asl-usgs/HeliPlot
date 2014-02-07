@@ -124,7 +124,7 @@ class HeliPlot(object):
 					self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'],\
 					stdout=subprocess.PIPE, stderr=subprocess.PIPE,\
 					preexec_fn=os.setsid, shell=True)
-				(out, err) = proc.communicate(self.cwbtimeout)	# waits for child proc 
+				(out, err) = proc.communicate(timeout=self.cwbtimeout)	# waits for child proc 
 				print proc.pid	
 				print out 
 				print err 	
@@ -132,8 +132,9 @@ class HeliPlot(object):
 				sys.stderr.flush()
 			except subprocess.TimeoutExpired:
 				print "TimeoutExpired Warning (cwbQuery() subprocess): retrying (attempt %d)..." % attempt
+				time.sleep(self.cwbsleep)
 
-				if attempt == 4:
+				if attempt == (self.cwbattempts-1):
 					print "TimeoutExpired (cwbQuery() subprocess): terminate cwbQuery() workers"	
 					self.killSubprocess(proc, signal.SIGKILL)	
 					raise TimeoutExpiredError()
@@ -169,6 +170,7 @@ class HeliPlot(object):
 		print "PROCESSES = " + str(PROCESSES)
 		print "cwbtimeout = " + str(self.cwbtimeout)
 		print "cwbattempts = " + str(self.cwbattempts)
+		print "cwbsleep = " + str(self.cwbsleep)	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
 			poolpid = os.getpid()	
@@ -685,6 +687,8 @@ class HeliPlot(object):
 						self.cwbtimeout = int(newline[0].strip())
 					elif "cwbquery attempts" in newline[1]:
 						self.cwbattempts = int(newline[0].strip())
+					elif "cwbquery sleep" in newline[1]:
+						self.cwbsleep = int(newline[0].strip())
 					elif "seed" in newline[1]:
 						self.seedpath = str(newline[0].strip())
 					elif "plots" in newline[1]:
