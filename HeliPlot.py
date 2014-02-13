@@ -118,12 +118,7 @@ class HeliPlot(object):
 				# a block that will kill all child processes if there
 				# is an error exception. All errors/warnings/info should
 				# be logged
-				proc = subprocess.Popen(["java -jar " + self.cwbquery +\
-					" -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' +\
-					" -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " +\
-					self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'],\
-					stdout=subprocess.PIPE, stderr=subprocess.PIPE,\
-					preexec_fn=os.setsid, shell=True)
+				proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid, shell=True)
 				(out, err) = proc.communicate(timeout=self.cwbtimeout)	# waits for child proc 
 				print proc.pid	
 				print out 
@@ -537,14 +532,13 @@ class HeliPlot(object):
 			dpl = plt.figure()	
 			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M")	
 			titlestartTime = titlestartTime + " UTC"	
-			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,\
-				type='dayplot', interval=60,\
-				vertical_scaling_range=self.vertrange,\
-				right_vertical_labels=False, number_of_ticks=7,\
-				one_tick_per_line=True, color=['k'], fig=dpl,\
-				show_y_UTC_label=False, size=(self.resx,self.resy),\
+			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,
+				type='dayplot', interval=60,
+				vertical_scaling_range=self.vertrange,
+				right_vertical_labels=False, number_of_ticks=7,
+				one_tick_per_line=True, color=['k'], fig=dpl,
+				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
-		
 			
 			# Set title, x/y labels and tick marks	
 			plt.title(stream[0].getId() + "  " + "Start: " +\
