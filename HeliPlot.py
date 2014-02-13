@@ -70,8 +70,8 @@ class HeliPlot(object):
 		# -----------------------------
 		print "Killing child %6s" % proc.pid	
 		time.sleep(1)	
-		# Add conditional statement deciphering
-		# timeout errors from keyboard interrupts
+		# Will need to change this block to
+		# account for spawned children
 		(out, err) = proc.communicate()
 		print out
 		print err
