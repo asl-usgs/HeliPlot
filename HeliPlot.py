@@ -36,23 +36,26 @@ import functools
 import multiprocessing
 import warnings, glob, re, os, sys, string, subprocess
 from datetime import datetime, timedelta
-import signal, logging, psutil, time
+import signal
+import logging
+import psutil
+import time
+import functools
 #from matplotlib.pyplot import title, figure, savefig
-
 
 class KeyboardInterruptError(Exception): pass	# raises KeyboardInterrupts for multiprocessing methods
 
 class TimeoutExpiredError(Exception): pass	# raises TimeoutExpired errors for multiprocessing subprocess methods
 
-# Unpack self from arguments and call method cwbQuery()
+# Unpack self from parallel method args and call method cwbQuery()
 def unwrap_self_cwbQuery(args, **kwargs):
 	return HeliPlot.cwbQuery(*args, **kwargs)
 
-# Unpack self from arguments and call method freqDeconvFilter() 
+# Unpack self from parallel method args and call method freqDeconvFilter() 
 def unwrap_self_freqDeconvFilter(args, **kwargs):
 	return HeliPlot.freqDeconvFilter(*args, **kwargs)
 
-# Unpack self from args and call method plotVelocity()
+# Unpack self from parallel method args and call method plotVelocity()
 def unwrap_self_plotVelocity(args, **kwargs):
 	return HeliPlot.plotVelocity(*args, **kwargs)
 
@@ -61,22 +64,22 @@ def unwrap_self_plotVelocity(args, **kwargs):
 # streams are then filtered and plotted using ObsPy
 # ---------------------------------------------------------
 class HeliPlot(object):
-	def killSubprocess(self, proc, signum):
+	def killSubprocess(self, proc, childpid, signum):
 		# -----------------------------
-		# Kills pool subprocess child
-		# proc.kill()
-		# os.kill(proc.pid, signum)
-		# kill = os.killpg(proc.pid, signum)
+		# Kills pool subprocess child/grandchild
+		# proc.kill()		# send kill to child	
+		# proc.send_signal(signum)	# kill child (just in case)	
+		# (out, err) = proc.communicate()
+		# raise subprocess.TimeoutExpired(proc.args, output=out)	
+		# os.kill(proc.pid, signum)	
 		# -----------------------------
-		print "Killing child %6s" % proc.pid	
+		print "Killing child:		%6s" % childpid 
+		print "Killing grandchild:	%6s" % proc.pid	
 		time.sleep(1)	
-		# Will need to change this block to
-		# account for spawned children
-		(out, err) = proc.communicate()
-		print out
-		print err
-		sys.stdout.flush()
-		sys.stderr.flush()
+		# Send kill signal to child/grandchild (terminate/kill)
+		proc.terminate()	# stop grandchild process
+		os.killpg(proc.pid, signum)	# kill grandchild process 	
+		os.killpg(childpid, signum)	# kill child process
 
 	def killPool(self, pool, pid, name):
 		# ------------------------------
@@ -91,12 +94,14 @@ class HeliPlot(object):
 		print "Pool %s is terminated" % name
 		parent = psutil.Process(pid)
 		# set recursive=True to kill grandchildren	
-		print "Killing children of pool %6s..." % pid	
+		print "Parent pid:	%6s" % pid 
+		print "Killing children of pool: %6s..." % pid	
 		time.sleep(1)	
 		for child in parent.get_children(recursive=True):
+			print child	
 			child.kill()	# kill children of pool 
-		print "Killing pool %6s..." % pid
-		time.sleep(1)	
+		print "Killing pool:	%6s..." % pid
+		time.sleep(1)		
 		parent.kill()	# kill pool (parent)
 
 	def cwbQuery(self, station): 
@@ -118,9 +123,21 @@ class HeliPlot(object):
 				# a block that will kill all child processes if there
 				# is an error exception. All errors/warnings/info should
 				# be logged
-				proc = subprocess.Popen(["java -jar " + self.cwbquery + " -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+'"' + " -d " + '"'+str(self.duration)+'"' + " -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + '"'+self.ipaddress+'"'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid, shell=True)
-				(out, err) = proc.communicate(timeout=self.cwbtimeout)	# waits for child proc 
-				print proc.pid	
+				subproc = subprocess.Popen([("java -jar " + self.cwbquery +
+					" -s " + '"'+station+'"' + " -b " + '"'+self.datetimeQuery+
+					'"' + " -d " + '"'+str(self.duration)+'"' + 
+					" -t dcc512 -o " + self.seedpath+"%N_%y_%j -h " + 
+					'"'+self.ipaddress+'"')],
+					stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+					preexec_fn=os.setsid, shell=True)
+				(out, err) = subproc.communicate(timeout=self.cwbtimeout)	# waits 
+
+				parentpid = os.getppid()	
+				childpid = os.getpid()	
+				subprocpid = subproc.pid	
+				print "parent pid: " + str(parentpid)
+				print "child  pid: " + str(childpid)
+				print "gchild pid: " + str(subprocpid)
 				print out 
 				print err 	
 				sys.stdout.flush()
@@ -131,21 +148,23 @@ class HeliPlot(object):
 
 				if attempt == (self.cwbattempts-1):
 					print "TimeoutExpired (cwbQuery() subprocess): terminate cwbQuery() workers"	
-					self.killSubprocess(proc, signal.SIGKILL)	
+					self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)	
+					sys.stdout.flush()
+					sys.stderr.flush()
 					raise TimeoutExpiredError()
 					return	# returns to cwbQuery pool	
 			except KeyboardInterrupt:
 				print "KeyboardInterrupt (cwbQuery() subprocess): terminate cwbQuery() workers"	
-				self.killSubprocess(proc, signal.SIGKILL)	
+				self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)	
 				raise KeyboardInterruptError()	
 				return	
 			except Exception as e:
 				print "*****Exception (cwbQuery() subprocess): " + str(e)
-				self.killSubprocess(proc, signal.SIGKILL)	
+				self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)	
 				return	
 			else:
 				break
-	
+				
 	def parallelcwbQuery(self):
 		# --------------------------------------------------
 		# Initialize all variables needed to run cwbQuery()
@@ -162,17 +181,17 @@ class HeliPlot(object):
 		# instances of cwbQuery()
 		# -----------------------------------------------
 		PROCESSES = multiprocessing.cpu_count()
-		print "PROCESSES = " + str(PROCESSES)
-		print "cwbtimeout = " + str(self.cwbtimeout)
-		print "cwbattempts = " + str(self.cwbattempts)
-		print "cwbsleep = " + str(self.cwbsleep)	
+		print "PROCESSES:	" + str(PROCESSES)
+		print "cwbtimeout:	" + str(self.cwbtimeout)
+		print "cwbattempts:	" + str(self.cwbattempts)
+		print "cwbsleep:	" + str(self.cwbsleep)	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
 			poolpid = os.getpid()	
 			poolname = "cwbQuery()"	
-			print "pool PID = " + str(poolpid) + "\n"	
+			print "pool PID:	" + str(poolpid) + "\n"	
 			pool.map(unwrap_self_cwbQuery, zip([self]*stationlen, self.stationinfo))
-		
+
 			# pool.close()/pool.terminate() must be called before pool.join() 
 			# pool.close(): prevents more tasks from being submitted to pool, 
 			# once tasks have been completed the worker processes will exit
@@ -193,7 +212,11 @@ class HeliPlot(object):
 		except Exception, e:
 			print "Exception (parallelcwbQuery() pool): %r, terminating the Pool" % (e,)
 			self.killPool(pool, poolpid, poolname)
-
+		else:
+			# cleanup (close pool of workers)	
+			pool.close()
+			pool.join()
+	
 	def pullTraces(self):
 		# ------------------------------------------------
 		# Open seed files from cwbQuery and pull trace
@@ -218,7 +241,7 @@ class HeliPlot(object):
 		try:
 			streamlen = len(stream)	# number of streams (i.e. stream files)
 			self.streamlen = streamlen	
-			print "streamlen = " + str(self.streamlen) 
+			print "streamlen: " + str(self.streamlen) 
 			trace = {}	# dict of traces for each stream
 			print "Creating trace dictionary based on stream indexing..."
 			print "multiple traces constitute embedded lists within dict."
@@ -297,18 +320,20 @@ class HeliPlot(object):
 				# Check for empty location codes, replace "__" with ""	
 				if locationID[i] == "__":
 					locationID[i] = ""
-				resfilename = "RESP."+networkID[i]+"."+stationID[i]+"."+locationID[i]+"."+channelID[i]	# response filename
-				print "resfilename = " + str(resfilename)
+				resfilename = ("RESP."+networkID[i]+"."+stationID[i]+"."+
+					locationID[i]+"."+channelID[i])	# response filename
+				print "resfilename: " + str(resfilename)
 				tmpname = re.split('RESP.', resfilename) 	
 				stationName.append(tmpname[1].strip())	
 				self.stationName = stationName	# store station names	
 			
-				resp = {'filename': resfilename, 'date': self.datetimeUTC, 'units': 'VEL'}	# frequency response of data stream in terms of velocity
+				resp = {'filename': resfilename, 'date': self.datetimeUTC,
+					'units': 'VEL'}	# frequency response of data (vel) 
 				self.resp.append(resp)	
 				print "stream[%d]" % i
-				print "number of traces = " + str(len(self.stream[i]))
-				print "datetimeUTC = " + str(self.datetimeUTC)
-				print "\n"
+				print "number of traces: " + str(len(self.stream[i]))
+				print "datetimeUTC: " + str(self.datetimeUTC)
+				print 
 			print "-------freqResponse() Complete------\n\n"
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (freqResponse()): terminating freqResponse() method" 
@@ -356,14 +381,23 @@ class HeliPlot(object):
 			
 			# Deconvolution (remove sensitivity)
 			sensitivity = "Sensitivity:"	# pull sensitivity from RESP file
-			grepSensitivity = "grep " + '"' + sensitivity + '"' + " " + nameres + " | tail -1"
+			grepSensitivity = ("grep " + '"' + sensitivity + '"' + " " + 
+				nameres + " | tail -1")
 			self.subprocess = True	# flag for exceptions (if !subprocess return)	
-			proc = subprocess.Popen([grepSensitivity], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-			(out, err) = proc.communicate(timeout=10)	# waits for child proc
+			subproc = subprocess.Popen([grepSensitivity], stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE, shell=True)
+			(out, err) = subproc.communicate(timeout=10)	# waits for child proc
+		
+			parentpid = os.getppid()	
+			childpid = os.getpid()	
+			subprocpid = subproc.pid
+			print "parent pid: " + str(parentpid)	
+			print "child  pid: " + str(childpid)
+			print "gchild pid: " + str(subprocpid)
 			tmps = out.strip()
 			tmps = re.split(':', tmps)
 			s = float(tmps[1].strip())
-			print "sensitivity = " + str(s) 
+			print "sensitivity: " + str(s) 
 			sys.stdout.flush()
 			sys.stderr.flush()
 			self.subprocess = False	# subprocess finished
@@ -378,40 +412,41 @@ class HeliPlot(object):
 			
 			if filtertype == "bandpass":
 				print "Filtering stream (bandpass)"
-				print "bp lower freq = " + str(bplowerfreq) 
-				print "bp upper freq = " + str(bpupperfreq) 
-				stream.filter(filtertype, freqmin=bplowerfreq, freqmax=bpupperfreq, corners=4)	# bandpass filter design
+				print "bp lower freq: " + str(bplowerfreq) 
+				print "bp upper freq: " + str(bpupperfreq) 
+				stream.filter(filtertype, freqmin=bplowerfreq,
+					freqmax=bpupperfreq, corners=4)	# bandpass filter design
 			elif filtertype == "lowpass":
 				print "Filtering stream (lowpass)"
-				print "lp freq = " + str(lpfreq) 
+				print "lp freq: " + str(lpfreq) 
 				stream.filter(filtertype, freq=lpfreq, corners=4)	# lowpass filter design
 			elif filtertype == "highpass":
 				print "Filtering stream (highpass)"
-				print "hpfreq = " + str(hpfreq) 
+				print "hpfreq: " + str(hpfreq) 
 				stream.filter(filtertype, freq=hpfreq, corners=4)	# highpass filter design	
 
-			print "Filtered stream = " + str(stream) + "\n"	
+			print "Filtered stream: " + str(stream) + "\n"	
 			return stream 
 		except subprocess.TimeoutExpired:
 			print "TimeoutExpired (freqDeconvFilter() subprocess): terminate freqDeconvFilter() workers"	
 			if self.subprocess:		
-				self.killSubprocess(proc, signal.SIGKILL)
+				self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)
 			raise TimeoutExpiredError()
 			return	# return to freqDeconvFilter pool
 		except KeyboardInterrupt:
 			print "KeyboardInterrupt (freqDeconvFilter() subprocess): terminate freqDeconvFilter() workers"
 			# if interrupt during subprocess kill child else return	
 			if self.subprocess:	
-				self.killSubprocess(proc, signal.SIGKILL)
+				self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)
 			raise KeyboardInterruptError()
 			return
 		except Exception as e:
 			print "*****Exception (freqDeconvFilter() subprocess): " + str(e)
 			# if exception during subprocess kill child else return	
 			if self.subprocess:	
-				self.killSubprocess(proc, signal.SIGKILL)
+				self.killSubprocess(subproc, os.getpid(), signal.SIGKILL)
 			return
-	
+
 	def parallelfreqDeconvFilter(self):
 		# -------------------------------------------------------------------
 		# Simulation/filter for deconvolution
@@ -426,22 +461,27 @@ class HeliPlot(object):
 		# -------------------------------------------------------------------
 		print "------freqDeconvFilter() Pool------\n"	
 		for i in range(self.streamlen):	
-			self.stream[i].merge(method=1, fill_value='interpolate', interpolation_samples=100)	# merge traces to eliminate small data lengths, method 0 => no overlap of traces (i.e. overwriting of previous trace data)
+			# merge traces to eliminate small data lengths, method 0
+			# => no overlap of traces (i.e. overwriting of previous 
+			# trace data)
+			self.stream[i].merge(method=1, fill_value='interpolate',
+				interpolation_samples=100)
 
 		# Deconvolution/Prefilter	
 		# Initialize multiprocessing pools
 		PROCESSES = multiprocessing.cpu_count()
-		print "PROCESSES = " + str(PROCESSES) 	
+		print "PROCESSES:	" + str(PROCESSES) 	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
 			poolpid = os.getpid()	
 			poolname = "freqDeconvFilter()"
-			print "pool PID = " + str(poolpid) + "\n"
-			flt_streams = pool.map(unwrap_self_freqDeconvFilter, zip([self]*self.streamlen, self.stream, self.resp))	
+			print "pool PID:	" + str(poolpid) + "\n"
+			flt_streams = pool.map(unwrap_self_freqDeconvFilter, 
+				zip([self]*self.streamlen, 
+				self.stream, self.resp))	
 			
 			pool.close()
 			pool.join()	
-			
 			self.flt_streams = flt_streams
 			print "-------freqDeconvFilter() Pool Complete------\n\n"
 		except TimeoutExpiredError:
@@ -454,6 +494,10 @@ class HeliPlot(object):
 		except Exception, e:
 			print "Exception (parallelfreqDeconvFilter() pool): %r, terminating the Pool" % (e,)
 			self.killPool(pool, poolpid, poolname)
+		else:
+			# cleanup (close pool of workers)	
+			pool.close()
+			pool.join()
 
 	def magnifyData(self):
 		# ----------------------------------------
@@ -463,7 +507,7 @@ class HeliPlot(object):
 		print "-----magnifyData() Start------\n"	
 		streams = self.flt_streams	
 		streamlen = len(streams)
-		print "Num filtered streams = " + str(streamlen)	
+		print "Num filtered streams: " + str(streamlen)	
 		self.magnification = {}	# dict containing magnifications for each station	
 		try:	
 			for i in range(streamlen):
@@ -482,7 +526,7 @@ class HeliPlot(object):
 						magnification = self.magnificationexc[netstationId]
 					else:
 						magnification = self.magnification_default
-					print "magnification = " + str(magnification) + "\n"
+					print "magnification: " + str(magnification) + "\n"
 					self.magnification[streams[i][0].getId()] = magnification
 					streams[i][0].data = streams[i][0].data * magnification 
 		
@@ -532,19 +576,20 @@ class HeliPlot(object):
 			dpl = plt.figure()	
 			titlestartTime = self.datetimePlotstart.strftime("%Y/%m/%d %H:%M")	
 			titlestartTime = titlestartTime + " UTC"	
-			stream.plot(starttime=self.datetimePlotstart, endtime=self.datetimePlotend,
+			stream.plot(starttime=self.datetimePlotstart, 
+				endtime=self.datetimePlotend,
 				type='dayplot', interval=60,
 				vertical_scaling_range=self.vertrange,
 				right_vertical_labels=False, number_of_ticks=7,
 				one_tick_per_line=True, color=['k'], fig=dpl,
 				show_y_UTC_label=False, size=(self.resx,self.resy),
 				dpi=self.pix, title_size=-1)
-			
+		
 			# Set title, x/y labels and tick marks	
-			plt.title(stream[0].getId() + "  " + "Start: " +\
+			plt.title(stream[0].getId() + "  " + "Start: " +
 				str(titlestartTime), fontsize=12) 
-			plt.xlabel('Time [m]\n(%s: %sHz  Trace Spacing: %.2e mm/s)' %\
-			(str(filtertype), str(bounds), trspacing), fontsize=10)	
+			plt.xlabel('Time [m]\n(%s: %sHz  Trace Spacing: %.2e mm/s)' %
+				(str(filtertype), str(bounds), trspacing), fontsize=10)	
 			plt.ylabel('Time [h]', fontsize=10)	
 			locs, labels = plt.yticks()	# pull current locs/labels	
 			hours = [0 for i in range(len(labels))]		
@@ -567,7 +612,7 @@ class HeliPlot(object):
 			for i in range(len(timelist)):
 				timelist[i] = str(timelist[i]) + ":00"
 			plt.yticks(posilist, timelist, fontsize=9)	
-			print "\n"	
+			print 
 			#dpi=self.pix, size=(self.resx,self.resy))
 			plt.savefig(stationName+"."+self.imgformat) 
 
@@ -594,13 +639,14 @@ class HeliPlot(object):
 	
 		# Initialize multiprocessing pools for plotting
 		PROCESSES = multiprocessing.cpu_count()
-		print "PROCESSES = " + str(PROCESSES)	
+		print "PROCESSES:	" + str(PROCESSES)	
 		pool = multiprocessing.Pool(PROCESSES)
 		try:
 			poolpid = os.getpid()
 			poolname = "plotVelocity()"
-			print "pool PID = " + str(poolpid) + "\n"
-			pool.map(unwrap_self_plotVelocity, zip([self]*streamlen, streams, self.stationName))	# thread plots
+			print "pool PID:	" + str(poolpid) + "\n"
+			pool.map(unwrap_self_plotVelocity, zip([self]*streamlen, 
+				streams, self.stationName))	# thread plots
 			
 			pool.close()
 			pool.join()
@@ -612,6 +658,10 @@ class HeliPlot(object):
 		except Exception, e:
 			print "Exception (parallelplotVelocity() pool): %r, terminating the Pool" % (e,)
 			self.killPool(pool, poolpid, poolname)
+		else:
+			# cleanup (close pool of workers)
+			pool.close()
+			pool.join()
 
 	def createThumbnails(self):
 		# --------------------------------------------------------
@@ -620,11 +670,9 @@ class HeliPlot(object):
 		print "Creating Thumbnails from OutputPlots...\n"	
 		# clear thumbnails directory 
 		os.chdir(self.thumbpath)	# cd into Thumbnails directory	
-		'''
 		thmfiles = glob.glob(self.thumbpath+"*")
 		for f in thmfiles:
 			os.remove(f)	# rm temp thumbnail files from Thumbnails dir
-		'''
 		
 		# read from outputplots directory
 		imgfiles = glob.glob(self.plotspath+"*")
@@ -737,15 +785,16 @@ class HeliPlot(object):
 		# Get current date/time and subtract a day
 		# this will always pull the current time on the system
 		time = datetime.utcnow() - timedelta(days=1)
-		#time = datetime(2014, 1, 13, 12, 15, 0, 0) - timedelta(days=1)	# earthquake
+		# (year, month, day, hour, minute, second, microsecond)	
+		#time = datetime(2014, 4, 2, 17, 30, 0, 0) - timedelta(days=1)	# earthquake
 		time2 = time + timedelta(hours=1)	
 		time2str = time2.strftime("%Y%m%d_%H:00:00")
 		time3 = time2 + timedelta(days=1)
 		time3str = time3.strftime("%Y%m%d_%H:00:00")
 		self.datetimePlotstart = UTCDateTime(time2str)
 		self.datetimePlotend = UTCDateTime(time3str)
-		print "datetimePlotstart = " + str(self.datetimePlotstart)
-		print "datetimePlotend = " + str(self.datetimePlotend)
+		print "datetimePlotstart:	%s" % str(self.datetimePlotstart)
+		print "datetimePlotend:	%s" % str(self.datetimePlotend)
 		timestring = str(time)
 		timestring = re.split("\\.", timestring)
 		tmp = timestring[0]
@@ -756,22 +805,92 @@ class HeliPlot(object):
 		tmpquery = re.split(' ', self.datetimeQuery)
 		tmpdate = tmp[0].strip()
 		tmptime = tmp[1].strip()
-		print "\ndatetimeQuery = " + str(self.datetimeQuery) 
+		print "\ndatetimeQuery:	%s" % str(self.datetimeQuery) 
 		tmpUTC = datetimeQuery
 		tmpUTC = tmpUTC.replace("/", "")
 		tmpUTC = tmpUTC.replace(" ", "_")
 		self.datetimeUTC = UTCDateTime(str(tmpUTC))
-		print "datetimeUTC = " + str(self.datetimeUTC) + "\n"
+		print "datetimeUTC:	%s" % str(self.datetimeUTC) + "\n"
+
+# Converts process time to min/sec
+def convertTime(time):
+	if time >= 60:
+		end = "m"	
+		ntime = time / 60.0	
+		timeflt = ntime
+	else:
+		end = "s"	
+		timeflt = time
+	return timeflt,end
 
 # -----------------------------
 # Main program (can be removed)
 # -----------------------------
 if __name__ == '__main__':
+	totalTime = 0	
+	
+	# query stations
 	heli = HeliPlot()
-	heli.parallelcwbQuery()			# query stations
-	heli.pullTraces()			# analyze trace data and remove empty traces	
-	heli.freqResponse()			# calculate frequency response of signal	
-	heli.parallelfreqDeconvFilter()		# deconvolve/filter trace data	
-	magnified_streams = heli.magnifyData()	# magnify trace data 
-	heli.parallelPlotVelocity(magnified_streams)	# plot filtered/magnified data	
-	heli.createThumbnails()			# create thumbnails from output plots 
+	t1 = time.time()	
+	heli.parallelcwbQuery()			
+	t2 = time.time()
+	timelencwb = t2 - t1
+
+	# analyze trace data and remove empty traces	
+	t1 = time.time()	
+	heli.pullTraces()			
+	t2 = time.time()
+	timelentrace = t2 -t1
+
+	# calculate frequency response of signal	
+	t1 = time.time()
+	heli.freqResponse()			
+	t2 = time.time()
+	timelenresp = t2 - t1
+
+	# deconvolve/filter trace data	
+	t1 = time.time()
+	heli.parallelfreqDeconvFilter()		
+	t2 = time.time()
+	timelendeconv = t2 - t1
+
+	# magnify trace data 
+	t1 = time.time()
+	magnified_streams = heli.magnifyData()	
+	t2 = time.time()
+	timelenmagnify = t2 - t1
+
+	# plot filtered/magnified data	
+	t1 = time.time()
+	heli.parallelPlotVelocity(magnified_streams)	
+	t2 = time.time()
+	timelenplot = t2 - t1
+
+	# create thumbnails from output plots 
+	t1 = time.time()
+	heli.createThumbnails()			
+	t2 = time.time()
+	timelenthumb = t2 - t1
+
+	# get total time of methods (don't use linux cmd 'time')
+	totalTime = (timelencwb + timelentrace + 
+			timelenresp + timelendeconv +
+			timelenmagnify + timelenplot +
+			timelenthumb)
+	
+	time1,ext1 = convertTime(timelencwb) 
+	time2,ext2 = convertTime(timelentrace)
+	time3,ext3 = convertTime(timelenresp)
+	time4,ext4 = convertTime(timelendeconv)
+	time5,ext5 =  convertTime(timelenmagnify)
+	time6,ext6 = convertTime(timelenplot)
+	time7,ext7 = convertTime(timelenthumb)
+	time8,ext8 = convertTime(totalTime)	
+	print "timelen cwbQuery():		%.4f%s" % (time1,ext1) 
+	print "timelen pullTraces():		%.4f%s" % (time2,ext2) 
+	print "timelen freqResponse():		%.4f%s" % (time3,ext3) 
+	print "timelen freqDeconvFilter():	%.4f%s" % (time4,ext4) 
+	print "timelen magnifyData():		%.4f%s" % (time5,ext5) 
+	print "timelen plotVelocity():		%.4f%s" % (time6,ext6) 
+	print "timelen createThumbnails():	%.4f%s" % (time7,ext7) 
+	print "total time:			%.4f%s" % (time8,ext8) 

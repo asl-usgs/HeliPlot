@@ -112,8 +112,7 @@ class run_heli_24hr(object):
 			if not self.stations[i] in self.gifstations:
 				self.missingstations.append(self.stations[i])	# store missing stations
 		print "****Missing station data****"	
-		'''for s in self.missingstations:
-			print s'''
+		print self.missingstations		
 	
 	def heliHTML(self):
 		# --------------------------------------------------
