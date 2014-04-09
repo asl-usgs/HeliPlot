@@ -667,12 +667,16 @@ class HeliPlot(object):
 		# --------------------------------------------------------
 		# Create thumbnails from heli output plots (350x262)	
 		# --------------------------------------------------------
-		print "Creating Thumbnails from OutputPlots...\n"	
+		print "Creating Thumbnails from OutputPlots..."	
 		# clear thumbnails directory 
 		os.chdir(self.thumbpath)	# cd into Thumbnails directory	
-		thmfiles = glob.glob(self.thumbpath+"*")
-		for f in thmfiles:
-			os.remove(f)	# rm temp thumbnail files from Thumbnails dir
+		if (self.thumbpath == self.plotspath):
+			print "Image/thumbnail paths match: NOT removing previous thumbnails...\n"
+		else:
+			print "Image/thumbnail paths DO NOT match: removing previous thumbnails...\n"
+			thmfiles = glob.glob(self.thumbpath+"*")
+			for f in thmfiles:
+				os.remove(f)	# rm temp thumbnail files from Thumbnails dir
 		
 		# read from outputplots directory
 		imgfiles = glob.glob(self.plotspath+"*")
